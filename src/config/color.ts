@@ -1,0 +1,16 @@
+export const COLORS = {
+  primary: '#620082',
+  secondary: '#808080',
+  success: '#008000',
+  warning: '#FFA500',
+  danger: '#FF0000',
+  info: '#0000FF',
+  light: '#F8F9FA',
+  dark: '#343A40',
+  muted: '#6C757D',
+  primaryText: '#FFFFFF',
+  secondaryText: '#000000',
+  successText: '#008000',
+  purple: '#29052a',
+  purpleLight: '#620082',
+};

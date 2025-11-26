@@ -1,0 +1,88 @@
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+// @ts-expect-error: FontAwesome6 lacks bundled types.
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+
+import { COLORS } from '../config/color';
+import HomeScreen from '../screens/Home';
+import PlaylistScreen from '../screens/Playlist';
+import SearchScreen from '../screens/Search';
+import ProfileScreen from '../screens/Profile';
+import { UserProfile } from '../storage/userStorage';
+
+type HomeTabsProps = {
+  profile: UserProfile;
+  onLogout: () => void;
+};
+
+export type HomeTabParamList = {
+  Home: undefined;
+  Search: undefined;
+  Playlist: undefined;
+  Profile: undefined;
+};
+
+const Tab = createBottomTabNavigator<HomeTabParamList>();
+
+const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout }) => {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: '#fff',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
+        tabBarLabelStyle: {
+          fontWeight: '600',
+          fontSize: 12,
+        },
+        tabBarBackground: () => <View style={styles.tabBackground} />,
+        tabBarStyle: {
+          borderTopColor: 'transparent',
+          height: 70,
+          position: 'absolute',
+          elevation: 0,
+          backgroundColor: 'transparent',
+        },
+        tabBarIcon: ({ color, size }) => {
+          const iconName = getIconName(route.name);
+          return <FontAwesome6 name={iconName} size={size} color={color} />;
+        },
+      })}>
+      <Tab.Screen name="Home">
+        {props => <HomeScreen {...props} profile={profile} onLogout={onLogout} />}
+      </Tab.Screen>
+      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Playlist" component={PlaylistScreen} />
+      <Tab.Screen name="Profile">
+        {props => <ProfileScreen {...props} profile={profile} onLogout={onLogout} />}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+};
+
+const getIconName = (route: string) => {
+  switch (route) {
+    case 'Home':
+      return 'house';
+    case 'Search':
+      return 'magnifying-glass';
+    case 'Playlist':
+      return 'list';
+    case 'Profile':
+      return 'user';
+    default:
+      return 'circle';
+  }
+};
+
+const styles = StyleSheet.create({
+  tabBackground: {
+    flex: 1,
+    backgroundColor: '#0f0f0f',
+  },
+});
+
+export default HomeTabs;
+
+
