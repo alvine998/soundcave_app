@@ -16,6 +16,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  PanResponder,
 } from 'react-native';
 import Sound from 'react-native-sound';
 import normalize from 'react-native-normalize';
@@ -471,6 +472,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
               onResume={resume}
               onNext={nextSong}
               onPrevious={previousSong}
+              onStop={stop}
               onOpenFullPlayer={() => {
                 navigationRef?.current?.navigate('FullPlayer');
               }}
@@ -490,6 +492,7 @@ type PlayerBarProps = {
   onResume: () => void;
   onNext: () => void;
   onPrevious: () => void;
+  onStop: () => void;
   onOpenFullPlayer?: () => void;
 };
 
@@ -501,14 +504,86 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
   onResume,
   onNext,
   onPrevious,
+  onStop,
   onOpenFullPlayer,
 }) => {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  // PanResponder for swipe gestures
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only respond to swipes (not taps)
+        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Only allow downward and horizontal swipes
+        if (gestureState.dy > 0 || Math.abs(gestureState.dx) > 20) {
+          pan.setValue({ x: gestureState.dx, y: gestureState.dy });
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const swipeThreshold = 80;
+        const velocityThreshold = 0.5;
+
+        // Swipe down to dismiss
+        if (
+          gestureState.dy > swipeThreshold ||
+          gestureState.vy > velocityThreshold
+        ) {
+          dismissPlayerBar();
+          return;
+        }
+
+        // Swipe left or right to dismiss
+        if (
+          Math.abs(gestureState.dx) > swipeThreshold ||
+          Math.abs(gestureState.vx) > velocityThreshold
+        ) {
+          dismissPlayerBar();
+          return;
+        }
+
+        // Reset position if swipe wasn't strong enough
+        Animated.spring(pan, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }).start();
+      },
+    }),
+  ).current;
+
+  const dismissPlayerBar = () => {
+    Animated.parallel([
+      Animated.timing(pan, {
+        toValue: { x: 0, y: 150 },
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Stop the song after animation completes
+      onStop();
+      // Reset pan position for next time
+      pan.setValue({ x: 0, y: 0 });
+    });
+  };
 
   useEffect(() => {
     if (song) {
+      // Reset pan position when new song starts
+      pan.setValue({ x: 0, y: 0 });
+      
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -536,7 +611,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
         }),
       ]).start();
     }
-  }, [song, translateY, opacity]);
+  }, [song, translateY, opacity, pan]);
 
   if (!song) {
     return null;
@@ -551,10 +626,14 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
           // Handle foldable devices like Samsung Z Fold - add extra padding for gesture navigation
           bottom: Math.max(insets.bottom, normalize(8)) + normalize(70),
           opacity,
-          transform: [{ translateY }],
+          transform: [
+            { translateY },
+            { translateX: pan.x },
+            { translateY: pan.y },
+          ],
         },
       ]}>
-      <View style={styles.playerBar}>
+      <View style={styles.playerBar} {...panResponder.panHandlers}>
         <TouchableOpacity
           onPress={onOpenFullPlayer}
           activeOpacity={0.8}

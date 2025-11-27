@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
@@ -25,7 +26,12 @@ export type HomeTabParamList = {
 
 const Tab = createBottomTabNavigator<HomeTabParamList>();
 
+const ICON_SIZE = 20; // Changed icon size here
+
 const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout }) => {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 70 + insets.bottom;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -34,19 +40,20 @@ const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout }) => {
         tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
         tabBarLabelStyle: {
           fontWeight: '600',
-          fontSize: 12,
+          fontSize: 8,
         },
         tabBarBackground: () => <View style={styles.tabBackground} />,
         tabBarStyle: {
           borderTopColor: 'transparent',
-          height: 70,
+          height: tabBarHeight,
           position: 'absolute',
           elevation: 0,
           backgroundColor: 'transparent',
+          paddingBottom: insets.bottom,
         },
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ color }) => {
           const iconName = getIconName(route.name);
-          return <FontAwesome6 name={iconName} size={size} color={color} />;
+          return <FontAwesome6 name={iconName} size={ICON_SIZE} color={color} />;
         },
       })}>
       <Tab.Screen name="Home">

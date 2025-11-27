@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import normalize from 'react-native-normalize';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/color';
 import { SONGS } from '../../storage/songs';
@@ -22,6 +23,7 @@ const SearchScreen = () => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { showToast } = useToast();
   const { songs: playlistSongs, addSong } = usePlaylist();
+  const insets = useSafeAreaInsets();
 
   const filteredSongs = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -46,6 +48,8 @@ const SearchScreen = () => {
     showToast({ message: `Added ${song.title} to playlist`, type: 'success' });
   };
 
+  const paddingBottom = normalize(100);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -62,7 +66,7 @@ const SearchScreen = () => {
         <FlatList
           data={filteredSongs}
           keyExtractor={item => item.url}
-          contentContainerStyle={styles.suggestionList}
+          contentContainerStyle={[styles.suggestionList, { paddingBottom }]}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
             const isActive = currentSong?.url === item.url && isPlaying;
@@ -133,9 +137,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.purple,
-
     paddingTop: normalize(24),
-    paddingBottom: normalize(100),
   },
   container: {
     flex: 1,
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
   searchInput: {
     borderRadius: normalize(999),
     paddingHorizontal: normalize(20),
-    paddingVertical: normalize(12),
+    paddingVertical: normalize(20),
     backgroundColor: '#111',
     color: '#fff',
     fontSize: normalize(16),
@@ -163,7 +165,6 @@ const styles = StyleSheet.create({
   },
   suggestionList: {
     gap: normalize(12),
-    paddingBottom: normalize(120),
   },
   suggestionRow: {
     flexDirection: 'row',

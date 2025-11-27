@@ -38,6 +38,9 @@ importers:
       react-native:
         specifier: 0.82.1
         version: 0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1)
+      react-native-music-control:
+        specifier: ^1.4.1
+        version: 1.4.1(react-native@0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1))
       react-native-normalize:
         specifier: ^1.0.1
         version: 1.0.1
@@ -53,6 +56,9 @@ importers:
       react-native-vector-icons:
         specifier: ^10.3.0
         version: 10.3.0
+      react-native-video:
+        specifier: ^6.0.0
+        version: 6.18.0(react-native@0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1))(react@19.1.1)
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2
@@ -3061,6 +3067,11 @@ packages:
   react-is@19.2.0:
     resolution: {integrity: sha512-x3Ax3kNSMIIkyVYhWPyO09bu0uttcAIoecO/um/rKGQ4EltYWVYtyiGkS/3xMynrbVQdS69Jhlv8FXUEZehlzA==}
 
+  react-native-music-control@1.4.1:
+    resolution: {integrity: sha512-IBiP2Yhb9iUPutXFFfNWKnf+CG/up9oPlMqY6qq1MDlhJ6giMCGQ+qO/Qd5hoDE0ZfxyqShs3CZaSch+oV/2zg==}
+    peerDependencies:
+      react-native: '>=0.40.0'
+
   react-native-normalize@1.0.1:
     resolution: {integrity: sha512-QYs95xhARhlcWWcDC77r4nVfxa3pDSfIBx2gdYZ+DOcLhSdPzRHFivWbGu3mL01JcvE69pMK7BmbPCda28vXwA==}
 
@@ -3085,6 +3096,12 @@ packages:
     resolution: {integrity: sha512-IFQ0RE57819hOUdFvgK4FowM5aMXg7C7XKsuGLevqXkkIJatc3QopN0wYrb2IrzUgmdpfP+QVIbI3S6h7M0btw==}
     deprecated: react-native-vector-icons package has moved to a new model of per-icon-family packages. See the https://github.com/oblador/react-native-vector-icons/blob/master/MIGRATION.md on how to migrate
     hasBin: true
+
+  react-native-video@6.18.0:
+    resolution: {integrity: sha512-9BjAtAh1uGq6h/GNCCh5yzb/iI9qJHuflwNGExyhoUxbhPD1s+15h+CdpJ2MKKJTXw6J7w+nQOp1Ywa54R8w7Q==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
 
   react-native@0.82.1:
     resolution: {integrity: sha512-tFAqcU7Z4g49xf/KnyCEzI4nRTu1Opcx05Ov2helr8ZTg1z7AJR/3sr2rZ+AAVlAs2IXk+B0WOxXGmdD3+4czA==}
@@ -7600,6 +7617,10 @@ snapshots:
 
   react-is@19.2.0: {}
 
+  react-native-music-control@1.4.1(react-native@0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1)):
+    dependencies:
+      react-native: 0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1)
+
   react-native-normalize@1.0.1: {}
 
   react-native-safe-area-context@5.6.2(react-native@0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1))(react@19.1.1):
@@ -7622,6 +7643,11 @@ snapshots:
     dependencies:
       prop-types: 15.8.1
       yargs: 16.2.0
+
+  react-native-video@6.18.0(react-native@0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1))(react@19.1.1):
+    dependencies:
+      react: 19.1.1
+      react-native: 0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1)
 
   react-native@0.82.1(@babel/core@7.28.5)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.28.5))(@types/react@19.2.6)(react@19.1.1):
     dependencies:

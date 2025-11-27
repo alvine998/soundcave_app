@@ -57,8 +57,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    width: normalize(100),
-    height: normalize(100),
+    width: normalize(170),
+    height: normalize(150),
   },
 });
 

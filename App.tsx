@@ -15,6 +15,8 @@ import RegisterScreen from './src/screens/Register';
 import WelcomeScreen from './src/screens/Welcome';
 import SplashScreen from './src/screens/Splash';
 import FullPlayerScreen from './src/screens/FullPlayer';
+import MusicVideoDetailScreen from './src/screens/MusicVideoDetail';
+import PodcastDetailScreen from './src/screens/PodcastDetail';
 import HomeTabs from './src/navigation/HomeTabs';
 import {
   clearUserProfile,
@@ -30,6 +32,20 @@ type RootStackParamList = {
   Genres: undefined;
   Home: undefined;
   FullPlayer: undefined;
+  MusicVideoDetail: {
+    id: string;
+    title: string;
+    artist: string;
+    cover: string;
+    videoUrl?: string;
+  };
+  PodcastDetail: {
+    id: string;
+    title: string;
+    duration: string;
+    cover: string;
+    audioUrl?: string;
+  };
 };
 
 enableScreens(true);
@@ -233,15 +249,31 @@ function App() {
                     )
                   }
                 </Stack.Screen>
-                <Stack.Screen
-                  name="FullPlayer"
-                  component={FullPlayerScreen}
-                  options={{
-                    presentation: 'fullScreenModal',
-                    animation: 'slide_from_bottom',
-                  }}
-                />
-              </Stack.Navigator>
+              <Stack.Screen
+                name="FullPlayer"
+                component={FullPlayerScreen}
+                options={{
+                  presentation: 'fullScreenModal',
+                  animation: 'slide_from_bottom',
+                }}
+              />
+              <Stack.Screen
+                name="MusicVideoDetail"
+                component={MusicVideoDetailScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="PodcastDetail"
+                component={PodcastDetailScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+            </Stack.Navigator>
             </NavigationContainer>
           </PlayerProvider>
         </PlaylistProvider>

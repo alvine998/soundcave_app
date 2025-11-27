@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import normalize from 'react-native-normalize';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/color';
 import { usePlaylist } from '../../components/PlaylistContext';
@@ -17,6 +18,9 @@ import { usePlayer } from '../../components/Player';
 const PlaylistScreen = () => {
   const { songs, removeSong, clear } = usePlaylist();
   const { playSong, currentSong, isPlaying } = usePlayer();
+  const insets = useSafeAreaInsets();
+
+  const paddingBottom = normalize(100);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -43,7 +47,7 @@ const PlaylistScreen = () => {
             <FlatList
               data={songs}
               keyExtractor={item => item.url}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingBottom }]}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
                 const isActive =
@@ -93,9 +97,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.purple,
-
     paddingTop: normalize(24),
-    paddingBottom: normalize(100),
   },
   container: {
     flex: 1,

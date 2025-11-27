@@ -2,6 +2,7 @@ export const SONGS = [
   {
     artist: 'Zara Salsabila',
     title: 'Seperti Kemarin',
+    // NOTE: This .mpeg file may not play on Android. Convert to .mp3 for better compatibility
     url: 'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FZara%20Salsabila%2FWhatsApp%20Audio%202025-11-22%20at%2011.12.06.mpeg?alt=media&token=7a6e3550-3412-4018-b7c6-2cf5a1c6ac57',
     time: '04:33',
     cover:

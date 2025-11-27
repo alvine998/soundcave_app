@@ -59,6 +59,7 @@ const FullPlayerScreen: React.FC = () => {
   };
 
   const progress = duration > 0 ? currentTime / duration : 0;
+  const contentPaddingBottom = Math.max(insets.bottom, normalize(16)) + normalize(40);
 
   return (
     <View style={styles.container}>
@@ -85,6 +86,7 @@ const FullPlayerScreen: React.FC = () => {
 
           <Animated.ScrollView
             style={styles.content}
+            contentContainerStyle={{ paddingBottom: contentPaddingBottom }}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -311,7 +313,6 @@ const styles = StyleSheet.create({
   },
   lyricsContainer: {
     paddingHorizontal: normalize(20),
-    paddingBottom: normalize(40),
   },
   lyricsTitle: {
     color: '#fff',

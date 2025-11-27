@@ -8,6 +8,9 @@ import {
   View,
 } from 'react-native';
 import normalize from 'react-native-normalize';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// @ts-expect-error: FontAwesome6 lacks bundled types.
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../../config/color';
 import { UserProfile } from '../../storage/userStorage';
@@ -27,12 +30,23 @@ const PREMIUM_BENEFITS = [
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout }) => {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  const paddingBottom = normalize(100);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingBottom }]}>
       <View style={styles.container}>
-        <Text style={styles.greeting}>Welcome back,</Text>
-        <Text style={styles.name}>{profile.fullName}</Text>
+        {/* Header with Profile Picture */}
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.name}>{profile.fullName}</Text>
+          </View>
+          <TouchableOpacity activeOpacity={0.8} style={styles.profilePicture}>
+            <FontAwesome6 name="user" size={15} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Email</Text>
@@ -113,13 +127,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.purple,
     paddingTop: normalize(24),
-    paddingBottom: normalize(100),
   },
   container: {
     flex: 1,
     paddingHorizontal: normalize(24),
     paddingVertical: normalize(40),
     gap: normalize(24),
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  headerText: {
+    flex: 1,
+    gap: normalize(4),
   },
   greeting: {
     color: 'rgba(255,255,255,0.6)',
@@ -129,6 +151,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: normalize(32),
     fontWeight: '700',
+  },
+  profilePicture: {
+    width: normalize(40),
+    height: normalize(40),
+    borderRadius: normalize(32),
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   card: {
     backgroundColor: '#111',
