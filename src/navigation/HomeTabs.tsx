@@ -30,7 +30,7 @@ const ICON_SIZE = 20; // Changed icon size here
 
 const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout }) => {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = 70 + insets.bottom;
+  const tabBarHeight = 60 + insets.bottom;
 
   return (
     <Tab.Navigator

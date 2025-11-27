@@ -9,11 +9,17 @@ import {
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 // @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../../config/color';
 import { UserProfile } from '../../storage/userStorage';
+
+type RootStackParamList = {
+  About: undefined;
+};
 
 type ProfileScreenProps = {
   profile: UserProfile;
@@ -29,6 +35,7 @@ const PREMIUM_BENEFITS = [
 ];
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout }) => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -75,6 +82,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout }) => {
             onPress={() => setShowPremiumModal(true)}
           >
             <Text style={styles.premiumLabel}>Join Premium</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.aboutButton}
+            onPress={() => navigation.navigate('About')}
+          >
+            <Text style={styles.aboutText}>About SoundCave</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -221,6 +235,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
+  },
+  aboutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: normalize(8),
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderWidth: 1,
+    borderRadius: normalize(18),
+    paddingVertical: normalize(14),
+  },
+  aboutText: {
+    color: '#fff',
+    fontSize: normalize(16),
+    fontWeight: '600',
   },
   logoutButton: {
     borderColor: 'rgba(255,255,255,0.5)',

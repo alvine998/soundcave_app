@@ -17,6 +17,7 @@ import SplashScreen from './src/screens/Splash';
 import FullPlayerScreen from './src/screens/FullPlayer';
 import MusicVideoDetailScreen from './src/screens/MusicVideoDetail';
 import PodcastDetailScreen from './src/screens/PodcastDetail';
+import AboutScreen from './src/screens/About';
 import HomeTabs from './src/navigation/HomeTabs';
 import {
   clearUserProfile,
@@ -46,6 +47,7 @@ type RootStackParamList = {
     cover: string;
     audioUrl?: string;
   };
+  About: undefined;
 };
 
 enableScreens(true);
@@ -268,6 +270,14 @@ function App() {
               <Stack.Screen
                 name="PodcastDetail"
                 component={PodcastDetailScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="About"
+                component={AboutScreen}
                 options={{
                   headerShown: false,
                   animation: 'slide_from_right',
