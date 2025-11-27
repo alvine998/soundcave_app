@@ -526,24 +526,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
             ))}
           </ScrollView>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Podcasts & stories</Text>
-          <View style={styles.verticalStack}>
-            {PODCASTS.map(podcast => (
-              <View key={podcast.id} style={styles.podcastCard}>
-                <View style={styles.podcastBadge} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.podcastTitle}>{podcast.title}</Text>
-                  <Text style={styles.podcastDuration}>{podcast.duration}</Text>
-                </View>
-                <TouchableOpacity activeOpacity={0.8}>
-                  <Text style={styles.playLabel}>Play</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );

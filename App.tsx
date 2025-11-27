@@ -18,6 +18,8 @@ import FullPlayerScreen from './src/screens/FullPlayer';
 import MusicVideoDetailScreen from './src/screens/MusicVideoDetail';
 import PodcastDetailScreen from './src/screens/PodcastDetail';
 import AboutScreen from './src/screens/About';
+import HelpScreen from './src/screens/Help';
+import EditProfileScreen from './src/screens/EditProfile';
 import HomeTabs from './src/navigation/HomeTabs';
 import {
   clearUserProfile,
@@ -48,6 +50,11 @@ type RootStackParamList = {
     audioUrl?: string;
   };
   About: undefined;
+  Help: undefined;
+  EditProfile: {
+    profile: UserProfile;
+    onSave: (updatedProfile: UserProfile) => void;
+  };
 };
 
 enableScreens(true);
@@ -105,6 +112,11 @@ function App() {
   const handleLogout = async () => {
     await clearUserProfile();
     setProfile(null);
+  };
+
+  const handleProfileUpdate = (updatedProfile: UserProfile) => {
+    setProfile(updatedProfile);
+    // TODO: Save to AsyncStorage if needed
   };
 
   const initialRoute = useMemo(() => {
@@ -241,6 +253,7 @@ function App() {
                             routes: [{ name: 'Welcome' }],
                           });
                         }}
+                        onProfileUpdate={handleProfileUpdate}
                       />
                     ) : (
                       <WelcomeScreen
@@ -278,6 +291,22 @@ function App() {
               <Stack.Screen
                 name="About"
                 component={AboutScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="Help"
+                component={HelpScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
                 options={{
                   headerShown: false,
                   animation: 'slide_from_right',

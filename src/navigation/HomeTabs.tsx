@@ -11,10 +11,12 @@ import PlaylistScreen from '../screens/Playlist';
 import SearchScreen from '../screens/Search';
 import ProfileScreen from '../screens/Profile';
 import { UserProfile } from '../storage/userStorage';
+import normalize from 'react-native-normalize';
 
 type HomeTabsProps = {
   profile: UserProfile;
   onLogout: () => void;
+  onProfileUpdate?: (updatedProfile: UserProfile) => void;
 };
 
 export type HomeTabParamList = {
@@ -28,7 +30,7 @@ const Tab = createBottomTabNavigator<HomeTabParamList>();
 
 const ICON_SIZE = 20; // Changed icon size here
 
-const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout }) => {
+const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout, onProfileUpdate }) => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = 60 + insets.bottom;
 
@@ -50,6 +52,7 @@ const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout }) => {
           elevation: 0,
           backgroundColor: 'transparent',
           paddingBottom: insets.bottom,
+          marginTop: normalize(10)
         },
         tabBarIcon: ({ color }) => {
           const iconName = getIconName(route.name);
@@ -62,7 +65,14 @@ const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout }) => {
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Playlist" component={PlaylistScreen} />
       <Tab.Screen name="Profile">
-        {props => <ProfileScreen {...props} profile={profile} onLogout={onLogout} />}
+        {props => (
+          <ProfileScreen
+            {...props}
+            profile={profile}
+            onLogout={onLogout}
+            onProfileUpdate={onProfileUpdate}
+          />
+        )}
       </Tab.Screen>
     </Tab.Navigator>
   );

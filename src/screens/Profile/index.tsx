@@ -19,11 +19,17 @@ import { UserProfile } from '../../storage/userStorage';
 
 type RootStackParamList = {
   About: undefined;
+  Help: undefined;
+  EditProfile: {
+    profile: UserProfile;
+    onSave: (updatedProfile: UserProfile) => void;
+  };
 };
 
 type ProfileScreenProps = {
   profile: UserProfile;
   onLogout: () => void;
+  onProfileUpdate?: (updatedProfile: UserProfile) => void;
 };
 
 const PREMIUM_BENEFITS = [
@@ -34,12 +40,18 @@ const PREMIUM_BENEFITS = [
   'Early access to exclusive drops & live sets',
 ];
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout }) => {
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout, onProfileUpdate }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const insets = useSafeAreaInsets();
 
   const paddingBottom = normalize(100);
+
+  const handleSaveProfile = (updatedProfile: UserProfile) => {
+    if (onProfileUpdate) {
+      onProfileUpdate(updatedProfile);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { paddingBottom }]}>
@@ -59,6 +71,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout }) => {
           <Text style={styles.cardLabel}>Email</Text>
           <Text style={styles.cardValue}>{profile.email}</Text>
         </View>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.editProfileButton}
+          onPress={() =>
+            navigation.navigate('EditProfile', {
+              profile,
+              onSave: handleSaveProfile,
+            })
+          }>
+          <Text style={styles.editProfileText}>Edit Profile</Text>
+        </TouchableOpacity>
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -89,6 +113,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout }) => {
             onPress={() => navigation.navigate('About')}
           >
             <Text style={styles.aboutText}>About SoundCave</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.helpButton}
+            onPress={() => navigation.navigate('Help')}
+          >
+            <Text style={styles.helpText}>Help & Support</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -195,6 +226,19 @@ const styles = StyleSheet.create({
     fontSize: normalize(18),
     fontWeight: '600',
   },
+  editProfileButton: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: normalize(18),
+    paddingVertical: normalize(14),
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  editProfileText: {
+    color: '#fff',
+    fontSize: normalize(16),
+    fontWeight: '600',
+  },
   statsRow: {
     flexDirection: 'row',
     gap: normalize(12),
@@ -247,6 +291,21 @@ const styles = StyleSheet.create({
     paddingVertical: normalize(14),
   },
   aboutText: {
+    color: '#fff',
+    fontSize: normalize(16),
+    fontWeight: '600',
+  },
+  helpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: normalize(8),
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderWidth: 1,
+    borderRadius: normalize(18),
+    paddingVertical: normalize(14),
+  },
+  helpText: {
     color: '#fff',
     fontSize: normalize(16),
     fontWeight: '600',

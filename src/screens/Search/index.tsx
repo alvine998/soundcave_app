@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// @ts-expect-error: FontAwesome6 lacks bundled types.
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../../config/color';
 import { SONGS } from '../../storage/songs';
@@ -100,6 +102,7 @@ const SearchScreen = () => {
                 <View style={styles.actionsColumn}>
                   <TouchableOpacity
                     activeOpacity={0.8}
+                    style={styles.playButton}
                     onPress={() => {
                       playSong(item);
                       showToast({
@@ -107,6 +110,11 @@ const SearchScreen = () => {
                         type: 'info',
                       });
                     }}>
+                    <FontAwesome6
+                      name={isActive ? 'pause' : 'play'}
+                      size={12}
+                      color={COLORS.primary}
+                    />
                     <Text style={styles.suggestionAction}>
                       {isActive ? 'Playing' : 'Play'}
                     </Text>
@@ -114,13 +122,23 @@ const SearchScreen = () => {
                   <TouchableOpacity
                     activeOpacity={0.8}
                     disabled={isInPlaylist}
+                    style={[
+                      styles.addButton,
+                      isInPlaylist && styles.addButtonDisabled,
+                    ]}
                     onPress={() => handleAddToPlaylist(item)}>
+                    <FontAwesome6
+                      name="star"
+                      size={12}
+                      color={isInPlaylist ? 'rgba(255,255,255,0.5)' : '#fff'}
+                      solid={isInPlaylist}
+                    />
                     <Text
                       style={[
                         styles.addAction,
                         isInPlaylist && styles.addActionDisabled,
                       ]}>
-                      {isInPlaylist ? 'Added' : 'Add'}
+                      {isInPlaylist ? 'Added to Playlist' : 'Add to Playlist'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -198,16 +216,38 @@ const styles = StyleSheet.create({
   suggestionAction: {
     color: COLORS.primary,
     fontWeight: '700',
+    fontSize: normalize(12),
   },
   actionsColumn: {
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: normalize(4),
+    justifyContent: 'center',
+    gap: normalize(8),
+  },
+  playButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(6),
+    paddingHorizontal: normalize(12),
+    paddingVertical: normalize(6),
+    borderRadius: normalize(999),
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(6),
+    paddingHorizontal: normalize(12),
+    paddingVertical: normalize(6),
+    borderRadius: normalize(999),
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  addButtonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   addAction: {
     color: '#fff',
     fontWeight: '600',
-    fontSize: normalize(12),
+    fontSize: normalize(11),
   },
   addActionDisabled: {
     color: 'rgba(255,255,255,0.5)',

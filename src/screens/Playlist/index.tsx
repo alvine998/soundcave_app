@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// @ts-expect-error: FontAwesome6 lacks bundled types.
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../../config/color';
 import { usePlaylist } from '../../components/PlaylistContext';
@@ -73,12 +75,28 @@ const PlaylistScreen = () => {
                       <Text style={styles.playlistMeta}>{item.artist}</Text>
                     </TouchableOpacity>
                     <View style={styles.playlistActions}>
-                      <Text style={styles.playlistAction}>
-                        {isActive ? 'Playing' : 'Play'}
-                      </Text>
                       <TouchableOpacity
                         activeOpacity={0.8}
+                        style={styles.playButton}
+                        onPress={() => playSong(item)}>
+                        <FontAwesome6
+                          name={isActive ? 'pause' : 'play'}
+                          size={12}
+                          color={COLORS.primary}
+                        />
+                        <Text style={styles.playlistAction}>
+                          {isActive ? 'Playing' : 'Play'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.removeButton}
                         onPress={() => removeSong(item.url)}>
+                        <FontAwesome6
+                          name="trash-can"
+                          size={12}
+                          color="rgba(255,100,100,0.9)"
+                        />
                         <Text style={styles.removeText}>Remove</Text>
                       </TouchableOpacity>
                     </View>
@@ -145,17 +163,37 @@ const styles = StyleSheet.create({
     fontSize: normalize(12),
   },
   playlistAction: {
-    color: '#fff',
+    color: COLORS.primary,
     fontWeight: '700',
+    fontSize: normalize(12),
   },
   playlistActions: {
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: normalize(8),
+  },
+  playButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: normalize(6),
+    paddingHorizontal: normalize(12),
+    paddingVertical: normalize(6),
+    borderRadius: normalize(999),
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  removeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(6),
+    paddingHorizontal: normalize(12),
+    paddingVertical: normalize(6),
+    borderRadius: normalize(999),
+    backgroundColor: 'rgba(255,100,100,0.1)',
   },
   removeText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: normalize(12),
+    color: 'rgba(255,100,100,0.9)',
+    fontSize: normalize(11),
+    fontWeight: '600',
   },
   emptyState: {
     marginTop: normalize(40),
