@@ -20,6 +20,8 @@ import PodcastDetailScreen from './src/screens/PodcastDetail';
 import AboutScreen from './src/screens/About';
 import HelpScreen from './src/screens/Help';
 import EditProfileScreen from './src/screens/EditProfile';
+import NewsScreen from './src/screens/News';
+import NewsDetailScreen from './src/screens/NewsDetail';
 import HomeTabs from './src/navigation/HomeTabs';
 import {
   clearUserProfile,
@@ -54,6 +56,10 @@ type RootStackParamList = {
   EditProfile: {
     profile: UserProfile;
     onSave: (updatedProfile: UserProfile) => void;
+  };
+  News: undefined;
+  NewsDetail: {
+    id: string;
   };
 };
 
@@ -307,6 +313,22 @@ function App() {
               <Stack.Screen
                 name="EditProfile"
                 component={EditProfileScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="News"
+                component={NewsScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="NewsDetail"
+                component={NewsDetailScreen}
                 options={{
                   headerShown: false,
                   animation: 'slide_from_right',

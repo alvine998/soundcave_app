@@ -12,6 +12,7 @@ import SearchScreen from '../screens/Search';
 import ProfileScreen from '../screens/Profile';
 import { UserProfile } from '../storage/userStorage';
 import normalize from 'react-native-normalize';
+import NewsScreen from '../screens/News';
 
 type HomeTabsProps = {
   profile: UserProfile;
@@ -21,6 +22,7 @@ type HomeTabsProps = {
 
 export type HomeTabParamList = {
   Home: undefined;
+  News: undefined;
   Search: undefined;
   Playlist: undefined;
   Profile: undefined;
@@ -30,12 +32,17 @@ const Tab = createBottomTabNavigator<HomeTabParamList>();
 
 const ICON_SIZE = 20; // Changed icon size here
 
-const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout, onProfileUpdate }) => {
+const HomeTabs: React.FC<HomeTabsProps> = ({
+  profile,
+  onLogout,
+  onProfileUpdate,
+}) => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = 60 + insets.bottom;
 
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: '#fff',
@@ -43,6 +50,7 @@ const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout, onProfileUpdate 
         tabBarLabelStyle: {
           fontWeight: '600',
           fontSize: 8,
+          marginTop: route.name === 'Home' ? normalize(5) : 0,
         },
         tabBarBackground: () => <View style={styles.tabBackground} />,
         tabBarStyle: {
@@ -52,17 +60,42 @@ const HomeTabs: React.FC<HomeTabsProps> = ({ profile, onLogout, onProfileUpdate 
           elevation: 0,
           backgroundColor: 'transparent',
           paddingBottom: insets.bottom,
-          marginTop: normalize(10)
+          marginTop: normalize(10),
         },
-        tabBarIcon: ({ color }) => {
+        tabBarIcon: ({ color, focused }) => {
           const iconName = getIconName(route.name);
-          return <FontAwesome6 name={iconName} size={ICON_SIZE} color={color} />;
+          const isHome = route.name === 'Home';
+
+          if (isHome) {
+            return (
+              <View
+                style={[
+                  styles.homeIconContainer
+                ]}
+              >
+                <FontAwesome6
+                  name={iconName}
+                  size={18}
+                  color={COLORS.light}
+                  style={{marginTop: normalize(-10)}}
+                />
+              </View>
+            );
+          }
+
+          return (
+            <FontAwesome6 name={iconName} size={ICON_SIZE} color={color} />
+          );
         },
-      })}>
-      <Tab.Screen name="Home">
-        {props => <HomeScreen {...props} profile={profile} onLogout={onLogout} />}
-      </Tab.Screen>
+      })}
+    >
+      <Tab.Screen name="News" component={NewsScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Home">
+        {props => (
+          <HomeScreen {...props} profile={profile} onLogout={onLogout} />
+        )}
+      </Tab.Screen>
       <Tab.Screen name="Playlist" component={PlaylistScreen} />
       <Tab.Screen name="Profile">
         {props => (
@@ -82,6 +115,8 @@ const getIconName = (route: string) => {
   switch (route) {
     case 'Home':
       return 'house';
+    case 'News':
+      return 'bullhorn';
     case 'Search':
       return 'magnifying-glass';
     case 'Playlist':
@@ -98,8 +133,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f0f0f',
   },
+  homeIconContainer: {
+    borderRadius: normalize(999),
+    backgroundColor: COLORS.primary,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    marginTop: normalize(20),
+    width: normalize(50),
+    height: normalize(50),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 
 export default HomeTabs;
-
-

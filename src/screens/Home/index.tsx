@@ -21,9 +21,14 @@ import { COLORS } from '../../config/color';
 import { UserProfile } from '../../storage/userStorage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SONGS } from '../../storage/songs';
+import { NEWS, NEWS_BACKDROPS } from '../../storage/news';
 
 type RootStackParamList = {
   Home: undefined;
+  News: undefined;
+  NewsDetail: {
+    id: string;
+  };
   MusicVideoDetail: {
     id: string;
     title: string;
@@ -77,6 +82,27 @@ const FEATURED_ARTISTS = [
   { id: 'artist-3', name: 'Golden Vox', color: '#ffd452' },
   { id: 'artist-4', name: 'Aria Moon', color: '#8e9eab' },
 ];
+
+const FALLBACK_SONG_COVER =
+  'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
+
+const BestSongCoverImage: React.FC<{ uri: string }> = ({ uri }) => {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <Image
+      key={failed ? `fallback-${uri}` : uri}
+      source={{ uri: failed ? FALLBACK_SONG_COVER : uri }}
+      style={styles.bestSongCover}
+      resizeMode="cover"
+      onError={() => {
+        if (!failed) {
+          setFailed(true);
+        }
+      }}
+    />
+  );
+};
 
 const PODCASTS = [
   {
@@ -238,11 +264,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
                     });
                   }}
                 >
-                  <Image
-                    source={{ uri: song.cover }}
-                    style={styles.bestSongCover}
-                    resizeMode="cover"
-                  />
+                  <BestSongCoverImage uri={song.cover} />
                   <View style={styles.bestSongOverlay}>
                     <View style={styles.bestSongBadge}>
                       <Text style={styles.bestSongRank}>#1</Text>
@@ -280,11 +302,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
                       });
                     }}
                   >
-                    <Image
-                      source={{ uri: song.cover }}
-                      style={styles.bestSongCover}
-                      resizeMode="cover"
-                    />
+                    <BestSongCoverImage uri={song.cover} />
                     <View style={styles.bestSongOverlay}>
                       <View style={styles.bestSongBadge}>
                         <Text style={styles.bestSongRank}>#{actualIndex}</Text>
@@ -526,6 +544,56 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
             ))}
           </ScrollView>
         </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>News</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('News')}
+            >
+              <Text style={styles.viewAllText}>View all</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.newsList}>
+            {NEWS.slice(0, 3).map((item, index) => {
+              const globalIndex = NEWS.findIndex(n => n.id === item.id);
+              const indexForCover = globalIndex >= 0 ? globalIndex : index;
+              const backdrop =
+                NEWS_BACKDROPS[indexForCover % NEWS_BACKDROPS.length];
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={0.9}
+                  onPress={() =>
+                    navigation.navigate('NewsDetail', {
+                      id: item.id,
+                    })
+                  }
+                >
+                  <ImageBackground
+                    source={{ uri: backdrop }}
+                    style={styles.newsCard}
+                    imageStyle={styles.newsCardBackgroundImage}
+                  >
+                    <View style={styles.newsCardOverlay} />
+                    <View style={styles.newsCardContent}>
+                      <View style={styles.newsMetaRow}>
+                        <Text style={styles.newsDate}>{item.date}</Text>
+                      </View>
+                      <Text style={styles.newsTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.newsSummary} numberOfLines={2}>
+                        {item.summary}
+                      </Text>
+                    </View>
+                  </ImageBackground>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -630,6 +698,11 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: normalize(12),
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sectionTitle: {
     color: '#fff',
@@ -805,6 +878,50 @@ const styles = StyleSheet.create({
   },
   podcastDuration: {
     color: 'rgba(255,255,255,0.6)',
+    fontSize: normalize(12),
+  },
+  viewAllText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(14),
+    fontWeight: '500',
+  },
+  newsList: {
+    gap: normalize(10),
+  },
+  newsCard: {
+    borderRadius: normalize(14),
+    padding: normalize(14),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    gap: normalize(6),
+  },
+  newsCardBackgroundImage: {
+    borderRadius: normalize(14),
+  },
+  newsCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: normalize(14),
+  },
+  newsCardContent: {
+    gap: normalize(6),
+  },
+  newsMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: normalize(4),
+  },
+  newsDate: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: normalize(11),
+  },
+  newsTitle: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: normalize(14),
+  },
+  newsSummary: {
+    color: 'rgba(255,255,255,0.7)',
     fontSize: normalize(12),
   },
   musicVideoScrollContent: {
