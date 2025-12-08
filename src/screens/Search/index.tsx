@@ -1,56 +1,115 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FlatList,
-  Image,
+  ImageBackground,
   SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import normalize from 'react-native-normalize';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// @ts-expect-error: FontAwesome6 lacks bundled types.
-import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../../config/color';
-import { SONGS } from '../../storage/songs';
-import { usePlayer } from '../../components/Player';
 import { useToast } from '../../components/Toast';
-import { usePlaylist } from '../../components/PlaylistContext';
+import { getApiInstance } from '../../utils/api';
+
+type Genre = {
+  id: string;
+  name: string;
+  image?: string;
+  color?: string;
+};
 
 const SearchScreen = () => {
   const [query, setQuery] = useState('');
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
-  const { songs: playlistSongs, addSong } = usePlaylist();
-  const insets = useSafeAreaInsets();
 
-  const filteredSongs = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      return SONGS;
-    }
-    return SONGS.filter(song => {
-      return (
-        song.title.toLowerCase().includes(q) ||
-        song.artist.toLowerCase().includes(q)
-      );
-    });
-  }, [query]);
+  useEffect(() => {
+    fetchGenres();
+  }, []);
 
-  const handleAddToPlaylist = (song: (typeof SONGS)[number]) => {
-    const alreadyIn = playlistSongs.some(s => s.url === song.url);
-    if (alreadyIn) {
-      showToast({ message: 'Song already in playlist', type: 'info' });
-      return;
+  const fetchGenres = async () => {
+    try {
+      setLoading(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/genres');
+      setGenres(response.data.data || response.data || []);
+    } catch (error: any) {
+      console.error('Error fetching genres:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to load genres';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
     }
-    addSong(song);
-    showToast({ message: `Added ${song.title} to playlist`, type: 'success' });
   };
 
+  const filteredGenres = genres.filter(genre => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return genre.name.toLowerCase().includes(q);
+  });
+
   const paddingBottom = normalize(100);
+
+  const renderGenreItem = ({ item, index }: { item: Genre; index: number }) => {
+    const isEven = index % 2 === 0;
+    const genreColors = [
+      '#ff6b6b',
+      '#4ecdc4',
+      '#45b7d1',
+      '#f9ca24',
+      '#6c5ce7',
+      '#a29bfe',
+      '#fd79a8',
+      '#fdcb6e',
+      '#e17055',
+      '#00b894',
+      '#0984e3',
+      '#d63031',
+    ];
+    const bgColor = item.color || genreColors[index % genreColors.length];
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={[
+          styles.genreCard,
+          isEven && styles.genreCardLeft,
+          !isEven && styles.genreCardRight,
+        ]}
+        onPress={() => {
+          showToast({
+            message: `Opening ${item.name}`,
+            type: 'info',
+          });
+        }}>
+        {item.image ? (
+          <ImageBackground
+            source={{ uri: item.image }}
+            style={styles.genreCardBackground}
+            imageStyle={styles.genreCardImage}>
+            <View style={styles.genreCardOverlay} />
+            <Text style={styles.genreCardText}>{item.name}</Text>
+          </ImageBackground>
+        ) : (
+          <View style={[styles.genreCardBackground, { backgroundColor: bgColor }]}>
+            <Text style={styles.genreCardText}>{item.name}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -58,94 +117,31 @@ const SearchScreen = () => {
         <Text style={styles.title}>Search</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="Songs, artists, playlists..."
+          placeholder="Search genres..."
           placeholderTextColor="rgba(255,255,255,0.4)"
           value={query}
           onChangeText={setQuery}
         />
 
-        <Text style={styles.sectionLabel}>Songs</Text>
-        <FlatList
-          data={filteredSongs}
-          keyExtractor={item => item.url}
-          contentContainerStyle={[styles.suggestionList, { paddingBottom }]}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const isActive = currentSong?.url === item.url && isPlaying;
-            const isInPlaylist = playlistSongs.some(s => s.url === item.url);
-            return (
-              <View
-                style={[
-                  styles.suggestionRow,
-                  isActive && { borderColor: COLORS.primary, borderWidth: 1 },
-                ]}>
-                <View style={styles.suggestionBadge}>
-                  <Image
-                    source={{ uri: item.cover }}
-                    style={styles.suggestionBadge}
-                    resizeMode="cover"
-                  />
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={{ flex: 1 }}
-                  onPress={() => {
-                    playSong(item);
-                    showToast({
-                      message: `Playing ${item.title}`,
-                      type: 'info',
-                    });
-                  }}>
-                  <Text style={styles.suggestionTitle}>{item.title}</Text>
-                  <Text style={styles.suggestionMeta}>{item.artist}</Text>
-                </TouchableOpacity>
-                <View style={styles.actionsColumn}>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={styles.playButton}
-                    onPress={() => {
-                      playSong(item);
-                      showToast({
-                        message: `Playing ${item.title}`,
-                        type: 'info',
-                      });
-                    }}>
-                    <FontAwesome6
-                      name={isActive ? 'pause' : 'play'}
-                      size={12}
-                      color={COLORS.primary}
-                    />
-                    <Text style={styles.suggestionAction}>
-                      {isActive ? 'Playing' : 'Play'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    disabled={isInPlaylist}
-                    style={[
-                      styles.addButton,
-                      isInPlaylist && styles.addButtonDisabled,
-                    ]}
-                    onPress={() => handleAddToPlaylist(item)}>
-                    <FontAwesome6
-                      name="star"
-                      size={12}
-                      color={isInPlaylist ? 'rgba(255,255,255,0.5)' : '#fff'}
-                      solid={isInPlaylist}
-                    />
-                    <Text
-                      style={[
-                        styles.addAction,
-                        isInPlaylist && styles.addActionDisabled,
-                      ]}>
-                      {isInPlaylist ? 'Added to Playlist' : 'Add to Playlist'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredGenres}
+            keyExtractor={item => item.id || item.name}
+            numColumns={2}
+            contentContainerStyle={[styles.genreGrid, { paddingBottom }]}
+            showsVerticalScrollIndicator={false}
+            renderItem={renderGenreItem}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No genres found</Text>
               </View>
-            );
-          }}
-        />
+            }
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -175,82 +171,58 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: normalize(16),
   },
-  sectionLabel: {
-    color: 'rgba(255,255,255,0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    fontSize: normalize(12),
-  },
-  suggestionList: {
-    gap: normalize(12),
-  },
-  suggestionRow: {
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#121212',
-    borderRadius: normalize(16),
+    paddingVertical: normalize(100),
+  },
+  genreGrid: {
+    gap: normalize(12),
+    paddingTop: normalize(8),
+  },
+  genreCard: {
+    flex: 1,
+    height: normalize(100),
+    borderRadius: normalize(8),
+    overflow: 'hidden',
+  },
+  genreCardLeft: {
+    marginRight: normalize(6),
+  },
+  genreCardRight: {
+    marginLeft: normalize(6),
+  },
+  genreCardBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: normalize(16),
-    gap: normalize(12),
   },
-  suggestionBadge: {
-    width: normalize(48),
-    height: normalize(48),
-    borderRadius: normalize(12),
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  genreCardImage: {
+    borderRadius: normalize(8),
   },
-  badgeText: {
+  genreCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: normalize(8),
+  },
+  genreCardText: {
     color: '#fff',
+    fontSize: normalize(18),
     fontWeight: '700',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  suggestionTitle: {
-    color: '#fff',
-    fontSize: normalize(16),
-    fontWeight: '600',
+  emptyContainer: {
+    paddingVertical: normalize(60),
+    alignItems: 'center',
   },
-  suggestionMeta: {
+  emptyText: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: normalize(12),
-  },
-  suggestionAction: {
-    color: COLORS.primary,
-    fontWeight: '700',
-    fontSize: normalize(12),
-  },
-  actionsColumn: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: normalize(8),
-  },
-  playButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: normalize(6),
-    paddingHorizontal: normalize(12),
-    paddingVertical: normalize(6),
-    borderRadius: normalize(999),
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: normalize(6),
-    paddingHorizontal: normalize(12),
-    paddingVertical: normalize(6),
-    borderRadius: normalize(999),
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  addButtonDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  addAction: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: normalize(11),
-  },
-  addActionDisabled: {
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: normalize(16),
   },
 });
 

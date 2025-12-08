@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
-  TextInput,
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useNavigation } from '@react-navigation/native';
@@ -178,13 +177,13 @@ const LIVE_SESSIONS = [
   { id: 'live-2', title: 'Studio B Unplugged', listeners: '8.4K' },
 ];
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { showToast } = useToast();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -238,14 +237,43 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
       >
         <View style={styles.section}>
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>{greeting}</Text>
-              <Text style={styles.name}>{profile.fullName}</Text>
+            <View style={styles.headerLeft}>
+              <View style={styles.profileInfo}>
+                {profile.profile_image ? (
+                  <Image
+                    source={{ uri: profile.profile_image }}
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.profileImagePlaceholder}>
+                    <Text style={styles.profileImageText}>
+                      {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.profileTextContainer}>
+                  <Text style={styles.greeting}>{greeting}</Text>
+                  <Text style={styles.name}>
+                    {profile.full_name || 'User'}
+                  </Text>
+                  {profile.email && (
+                    <Text style={styles.email}>{profile.email}</Text>
+                  )}
+                </View>
+              </View>
             </View>
-            <Text style={styles.sectionTitle2}>Most Played</Text>
+            <Image
+              source={require('../../assets/images/home_soundcave.png')}
+              style={{ width: normalize(100), height: normalize(50) }}
+            />
           </View>
-          <View style={styles.bestSongsContainer}>
-            {/* Right side: Song #1 (large) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.bestSongsScrollContent}
+          >
+            {/* Song #1 (large) */}
             {SONGS.slice(0, 1).map(song => {
               const isActive = currentSong?.url === song.url && isPlaying;
               return (
@@ -281,11 +309,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
                 </TouchableOpacity>
               );
             })}
-            {/* Left side: Song #2 and #3 stacked */}
-            <View style={styles.bestSongsLeft}>
+            {/* Songs #2 and #3 (vertical column) */}
+            <View style={styles.bestSongsVerticalColumn}>
               {SONGS.slice(1, 3).map((song, index) => {
                 const isActive = currentSong?.url === song.url && isPlaying;
-                const actualIndex = index + 2; // #2 and #3
+                const rank = index + 2;
                 return (
                   <TouchableOpacity
                     key={song.url}
@@ -305,7 +333,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
                     <BestSongCoverImage uri={song.cover} />
                     <View style={styles.bestSongOverlay}>
                       <View style={styles.bestSongBadge}>
-                        <Text style={styles.bestSongRank}>#{actualIndex}</Text>
+                        <Text style={styles.bestSongRank}>#{rank}</Text>
                       </View>
                       <View style={styles.bestSongInfo}>
                         <Text style={styles.bestSongTitle} numberOfLines={1}>
@@ -320,23 +348,67 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile, onLogout }) => {
                 );
               })}
             </View>
-          </View>
+            {/* Songs #4 and #5 (vertical column) */}
+            <View style={styles.bestSongsVerticalColumn}>
+              {SONGS.slice(3, 5).map((song, index) => {
+                const isActive = currentSong?.url === song.url && isPlaying;
+                const rank = index + 4;
+                return (
+                  <TouchableOpacity
+                    key={song.url}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.bestSongCardSmall,
+                      isActive && styles.bestSongCardActive,
+                    ]}
+                    onPress={() => {
+                      playSong(song);
+                      showToast({
+                        message: `Playing ${song.title}`,
+                        type: 'info',
+                      });
+                    }}
+                  >
+                    <BestSongCoverImage uri={song.cover} />
+                    <View style={styles.bestSongOverlay}>
+                      <View style={styles.bestSongBadge}>
+                        <Text style={styles.bestSongRank}>#{rank}</Text>
+                      </View>
+                      <View style={styles.bestSongInfo}>
+                        <Text style={styles.bestSongTitle} numberOfLines={1}>
+                          {song.title}
+                        </Text>
+                        <Text style={styles.bestSongArtist} numberOfLines={1}>
+                          {song.artist}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your vibe</Text>
-          <View style={styles.chipRow}>
-            {selectedGenres.slice(0, 5).map(genre => (
-              <View key={genre} style={styles.genreChip}>
-                <Text style={styles.genreChipText}>{genre}</Text>
-              </View>
-            ))}
-            {!selectedGenres.length && (
-              <Text style={styles.emptyGenres}>
-                You haven't picked any genres yet.
-              </Text>
-            )}
-          </View>
+          {selectedGenres.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRowScrollContent}
+            >
+              {selectedGenres.map(genre => (
+                <View key={genre} style={styles.genreChip}>
+                  <Text style={styles.genreChipText}>{genre}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptyGenres}>
+              You haven't picked any genres yet.
+            </Text>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -612,16 +684,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginTop: normalize(8),
+    marginTop: normalize(14),
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  profileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(12),
+  },
+  profileImage: {
+    width: normalize(50),
+    height: normalize(50),
+    borderRadius: normalize(25),
+    backgroundColor: '#222',
+  },
+  profileImagePlaceholder: {
+    width: normalize(50),
+    height: normalize(50),
+    borderRadius: normalize(25),
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileImageText: {
+    color: '#fff',
+    fontSize: normalize(20),
+    fontWeight: '700',
+  },
+  profileTextContainer: {
+    flex: 1,
+    gap: normalize(2),
   },
   greeting: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: normalize(14),
   },
   name: {
-    fontSize: normalize(30),
+    fontSize: normalize(20),
     fontWeight: '700',
     color: '#fff',
+  },
+  email: {
+    fontSize: normalize(12),
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: normalize(2),
   },
   logoutButton: {
     paddingVertical: normalize(6),
@@ -634,24 +742,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  bestSongsContainer: {
-    flexDirection: 'row',
-    gap: normalize(5),
-    height: normalize(200),
+  bestSongsScrollContent: {
+    gap: normalize(10),
+    paddingRight: normalize(24),
   },
-  bestSongsLeft: {
-    flex: 0.25,
-    gap: normalize(5),
+  bestSongsVerticalColumn: {
+    flexDirection: 'column',
+    gap: normalize(10),
   },
   bestSongCardSmall: {
-    flex: 1,
+    width: normalize(95),
+    height: normalize(95),
     borderRadius: normalize(10),
     overflow: 'hidden',
     backgroundColor: '#111',
     position: 'relative',
   },
   bestSongCardLarge: {
-    flex: 0.75,
+    width: normalize(200),
+    height: normalize(200),
     borderRadius: normalize(10),
     overflow: 'hidden',
     backgroundColor: '#111',
@@ -724,10 +833,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.25)',
     color: '#fff',
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  chipRowScrollContent: {
     gap: normalize(10),
+    paddingRight: normalize(24),
   },
   genreChip: {
     borderRadius: normalize(999),
@@ -960,9 +1068,8 @@ const styles = StyleSheet.create({
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111',
+    // backgroundColor: '#111',
     borderRadius: normalize(16),
-    padding: normalize(14),
     gap: normalize(12),
   },
   songCover: {

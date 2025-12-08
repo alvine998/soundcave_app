@@ -300,10 +300,11 @@ const styles = StyleSheet.create({
     marginTop: normalize(8),
     marginBottom: normalize(4),
     paddingHorizontal: normalize(20),
-    paddingVertical: normalize(14),
+    paddingVertical: normalize(20),
     borderRadius: normalize(999),
     backgroundColor: 'rgba(0,0,0,0.25)',
     color: '#fff',
+    fontSize: normalize(16),
   },
   tabRow: {
     gap: normalize(8),

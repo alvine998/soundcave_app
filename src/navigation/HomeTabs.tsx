@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
@@ -51,6 +51,7 @@ const HomeTabs: React.FC<HomeTabsProps> = ({
           fontWeight: '600',
           fontSize: 8,
           marginTop: route.name === 'Home' ? normalize(5) : 0,
+          opacity: route.name === 'Home' ? 0 : 1,
         },
         tabBarBackground: () => <View style={styles.tabBackground} />,
         tabBarStyle: {
@@ -73,11 +74,15 @@ const HomeTabs: React.FC<HomeTabsProps> = ({
                   styles.homeIconContainer
                 ]}
               >
-                <FontAwesome6
+                {/* <FontAwesome6
                   name={iconName}
                   size={18}
                   color={COLORS.light}
                   style={{marginTop: normalize(-10)}}
+                /> */}
+                <Image
+                  source={require('../assets/images/41885.png')}
+                  style={{width: normalize(25), height: normalize(45)}}
                 />
               </View>
             );
@@ -138,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
-    marginTop: normalize(20),
+    marginTop: normalize(30),
     width: normalize(50),
     height: normalize(50),
     flexDirection: 'row',

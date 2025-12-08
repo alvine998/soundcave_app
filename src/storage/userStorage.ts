@@ -1,10 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type UserProfile = {
-  fullName: string;
+  id?: number;
+  full_name: string;
   email: string;
-  password: string;
+  password?: string;
+  phone?: string;
+  location?: string;
+  bio?: string;
+  profile_image?: string | null;
+  role?: string;
   selectedGenres?: string[];
+  created_at?: string;
+  updated_at?: string;
 };
 
 const STORAGE_KEY = '@soundcave:userProfile';

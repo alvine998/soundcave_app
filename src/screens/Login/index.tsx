@@ -13,7 +13,9 @@ import Icon from 'react-native-vector-icons/FontAwesome6';
 
 import { useToast } from '../../components/Toast';
 import { COLORS } from '../../config/color';
-import { getUserProfile, UserProfile } from '../../storage/userStorage';
+import { saveUserProfile, UserProfile } from '../../storage/userStorage';
+import { saveToken } from '../../storage/tokenStorage';
+import { getPublicApiInstance } from '../../utils/api';
 
 type LoginScreenProps = {
   onBack: () => void;
@@ -41,25 +43,49 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
     try {
       setSubmitting(true);
-      const storedProfile = await getUserProfile();
-      if (!storedProfile) {
-        showToast({ message: 'No account found. Please register first.', type: 'error' });
-        return;
-      }
+      const api = getPublicApiInstance();
+      const response = await api.post('/api/auth/login', {
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-      if (
-        storedProfile.email !== email.trim().toLowerCase() ||
-        storedProfile.password !== password
-      ) {
-        showToast({ message: 'Email or password is incorrect.', type: 'error' });
-        return;
-      }
+      const responseData = response.data;
+      if (responseData.success && responseData.data) {
+        const { token, user } = responseData.data;
 
-      showToast({ message: 'Welcome back!', type: 'success' });
-      onSuccess(storedProfile);
-    } catch (error) {
+        // Simpan token
+        await saveToken(token);
+
+        // Simpan user profile
+        const userProfile: UserProfile = {
+          id: user.id,
+          full_name: user.full_name || '',
+          email: user.email,
+          phone: user.phone,
+          location: user.location,
+          bio: user.bio,
+          profile_image: user.profile_image,
+          role: user.role,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+        };
+        await saveUserProfile(userProfile);
+
+        showToast({ message: responseData.message || 'Welcome back!', type: 'success' });
+        onSuccess(userProfile);
+      } else {
+        showToast({
+          message: responseData.message || 'Login failed. Please try again.',
+          type: 'error',
+        });
+      }
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to verify your credentials right now. Please try again later.';
       showToast({
-        message: 'Unable to verify your credentials right now. Please try again later.',
+        message: errorMessage,
         type: 'error',
       });
     } finally {
@@ -70,9 +96,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
 
         <Text style={styles.title}>Sign In</Text>
         <Text style={styles.subtitle}>

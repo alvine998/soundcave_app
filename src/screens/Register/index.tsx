@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import normalize from 'react-native-normalize';
 // @ts-expect-error: No types for FontAwesome6, see lint_context_0.
 import Icon from 'react-native-vector-icons/FontAwesome6';
 
 import { useToast } from '../../components/Toast';
 import { COLORS } from '../../config/color';
-import { saveUserProfile } from '../../storage/userStorage';
+import { saveUserProfile, UserProfile } from '../../storage/userStorage';
+import { getPublicApiInstance } from '../../utils/api';
+import { CONFIG } from '../../config';
 
 type RegisterScreenProps = {
   onBack: () => void;
@@ -28,13 +30,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({
 }) => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
 
   const handleRegister = async () => {
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
       showToast({ message: 'Please complete all fields.', type: 'error' });
       return;
     }
@@ -55,20 +58,80 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({
 
     try {
       setSubmitting(true);
-      await saveUserProfile({
+      const api = getPublicApiInstance();
+      
+      const requestData = {
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
+        phone: phone.trim(),
+      };
+      
+      console.log('Register request:', requestData);
+      
+      const response = await api.post('/api/auth/register', requestData);
+      
+      console.log('Register response:', response.data);
+
+      // Simpan user profile ke local storage
+      const userData = response.data.data || response.data;
+      await saveUserProfile({
+        id: userData.id,
+        full_name: userData.fullName || userData.full_name || fullName.trim(),
+        email: userData.email || email.trim().toLowerCase(),
+        phone: userData.phone,
+        location: userData.location,
+        bio: userData.bio,
+        profile_image: userData.profileImage || userData.profile_image,
+        role: userData.role || 'user',
+        created_at: userData.createdAt || userData.created_at,
+        updated_at: userData.updatedAt || userData.updated_at,
       });
+
       setFullName('');
       setEmail('');
+      setPhone('');
       setPassword('');
       setAgreed(false);
       showToast({ message: 'Account created! You can sign in now.', type: 'success' });
       onLogin();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Register error:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        request: error.config,
+      });
+      
+      let errorMessage = 'Unable to create your account right now. Please try again shortly.';
+      
+      if (error.response) {
+        // Server responded with error status
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        if (data?.message) {
+          errorMessage = data.message;
+        } else if (status === 500) {
+          errorMessage = 'Server error. Please try again later or contact support.';
+        } else if (status === 400) {
+          errorMessage = 'Invalid data. Please check your input and try again.';
+        } else if (status === 409) {
+          errorMessage = 'Email or phone number already exists. Please use different credentials.';
+        } else {
+          errorMessage = `Error ${status}: ${error.response.statusText || 'Request failed'}`;
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'No response from server. Please check your internet connection.';
+      } else {
+        // Something else happened
+        errorMessage = error.message || errorMessage;
+      }
+      
       showToast({
-        message: 'Unable to save your account right now. Please try again shortly.',
+        message: errorMessage,
         type: 'error',
       });
     } finally {
@@ -79,9 +142,6 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
 
         <Text style={styles.title}>Create Account</Text>
         <Text style={styles.subtitle}>
@@ -104,6 +164,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({
             autoCapitalize="none"
             value={email}
             onChangeText={setEmail}
+          />
+          <TextInput
+            placeholder="Phone"
+            placeholderTextColor={COLORS.muted}
+            style={styles.input}
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
           />
           <TextInput
             placeholder="Password"
@@ -241,14 +309,14 @@ const styles = StyleSheet.create({
     height: normalize(24),
     borderRadius: normalize(6),
     borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.purple,
+    borderColor: COLORS.light,
   },
   checkboxChecked: {
     borderColor: COLORS.light,
-    backgroundColor: 'rgba(98, 0, 130, 0.12)',
+    backgroundColor: COLORS.light,
   },
   checkboxLabel: {
     flex: 1,

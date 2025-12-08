@@ -28,6 +28,8 @@ import {
   getUserProfile,
   UserProfile,
 } from './src/storage/userStorage';
+import { clearToken } from './src/storage/tokenStorage';
+import { resetApiInstance } from './src/utils/api';
 
 type RootStackParamList = {
   Splash: undefined;
@@ -117,6 +119,8 @@ function App() {
 
   const handleLogout = async () => {
     await clearUserProfile();
+    await clearToken();
+    resetApiInstance();
     setProfile(null);
   };
 
