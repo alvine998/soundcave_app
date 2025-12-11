@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
-    marginTop: normalize(30),
+    marginTop: normalize(20),
     width: normalize(50),
     height: normalize(50),
     flexDirection: 'row',

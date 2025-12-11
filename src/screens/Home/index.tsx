@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Image,
   ImageBackground,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useNavigation } from '@react-navigation/native';
@@ -19,8 +20,9 @@ import { useToast } from '../../components/Toast';
 import { COLORS } from '../../config/color';
 import { UserProfile } from '../../storage/userStorage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SONGS } from '../../storage/songs';
+import { SONGS, Song } from '../../storage/songs';
 import { NEWS, NEWS_BACKDROPS } from '../../storage/news';
+import { getApiInstance } from '../../utils/api';
 
 type RootStackParamList = {
   Home: undefined;
@@ -103,74 +105,39 @@ const BestSongCoverImage: React.FC<{ uri: string }> = ({ uri }) => {
   );
 };
 
-const PODCASTS = [
-  {
-    id: 'pod-1',
-    title: 'Soundcave Sessions',
-    duration: '42 min',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FZara%20Salsabila%2FWhatsApp%20Image%202025-11-22%20at%2000.46.52.jpeg?alt=media&token=7a4d504f-dd2c-43e4-958c-4f2dd133e51c',
-  },
-  {
-    id: 'pod-2',
-    title: 'Future Frequencies',
-    duration: '31 min',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FFani%20Fabianto%2FWhatsApp%20Image%202025-11-22%20at%2021.54.21.jpeg?alt=media&token=93230949-8f1b-41b6-a4b2-b7436a892665',
-  },
-  {
-    id: 'pod-3',
-    title: 'Indie Talks',
-    duration: '28 min',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FUnknown%2FWhatsApp%20Image%202025-11-24%20at%2021.36.15%20(1).jpeg?alt=media&token=443eb6c3-6e4b-4809-a678-bc7104662f58',
-  },
-  {
-    id: 'pod-4',
-    title: 'Music Makers',
-    duration: '35 min',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FZara%20Salsabila%2FWhatsApp%20Image%202025-11-22%20at%2000.46.52.jpeg?alt=media&token=7a4d504f-dd2c-43e4-958c-4f2dd133e51c',
-  },
-];
+type MusicVideo = {
+  id: string;
+  title: string;
+  artist: string;
+  cover: string;
+  videoUrl?: string;
+};
 
-const MUSIC_VIDEOS = [
-  {
-    id: 'mv-1',
-    title: 'Seperti Kemarin',
-    artist: 'Zara Salsabila',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FZara%20Salsabila%2FWhatsApp%20Image%202025-11-22%20at%2000.46.52.jpeg?alt=media&token=7a4d504f-dd2c-43e4-958c-4f2dd133e51c',
-  },
-  {
-    id: 'mv-2',
-    title: 'Telah Pergi',
-    artist: 'Fani Fabianto',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FFani%20Fabianto%2FWhatsApp%20Image%202025-11-22%20at%2021.54.21.jpeg?alt=media&token=93230949-8f1b-41b6-a4b2-b7436a892665',
-  },
-  {
-    id: 'mv-3',
-    title: 'Track 01',
-    artist: 'Original Soundcave',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FUnknown%2FWhatsApp%20Image%202025-11-24%20at%2021.36.15%20(1).jpeg?alt=media&token=443eb6c3-6e4b-4809-a678-bc7104662f58',
-  },
-  {
-    id: 'mv-4',
-    title: 'Track 02',
-    artist: 'Original Soundcave',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FZara%20Salsabila%2FWhatsApp%20Image%202025-11-22%20at%2000.46.52.jpeg?alt=media&token=7a4d504f-dd2c-43e4-958c-4f2dd133e51c',
-  },
-  {
-    id: 'mv-5',
-    title: 'Track 03',
-    artist: 'Original Soundcave',
-    cover:
-      'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FFani%20Fabianto%2FWhatsApp%20Image%202025-11-22%20at%2021.54.21.jpeg?alt=media&token=93230949-8f1b-41b6-a4b2-b7436a892665',
-  },
-];
+type Podcast = {
+  id: string;
+  title: string;
+  duration: string;
+  cover: string;
+  audioUrl?: string;
+};
+
+type NewsData = {
+  id: number;
+  title: string;
+  content: string;
+  summary: string;
+  author: string;
+  category: string;
+  image_url: string;
+  published_at: string | null;
+  is_published: boolean;
+  is_headline: boolean;
+  views: number;
+  tags: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
 
 const LIVE_SESSIONS = [
   { id: 'live-1', title: 'Night Swim Radio', listeners: '12K' },
@@ -184,6 +151,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery] = useState('');
+  const [latestDrops, setLatestDrops] = useState<readonly Song[]>([]);
+  const [loadingLatestDrops, setLoadingLatestDrops] = useState(true);
+  const [musicVideos, setMusicVideos] = useState<MusicVideo[]>([]);
+  const [loadingMusicVideos, setLoadingMusicVideos] = useState(true);
+  const [podcasts, setPodcasts] = useState<Podcast[]>([]);
+  const [loadingPodcasts, setLoadingPodcasts] = useState(true);
+  const [newsData, setNewsData] = useState<NewsData[]>([]);
+  const [loadingNews, setLoadingNews] = useState(true);
+  const [topStreamedSongs, setTopStreamedSongs] = useState<readonly Song[]>([]);
+  const [loadingTopStreamed, setLoadingTopStreamed] = useState(true);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -192,16 +169,272 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     return 'Good Evening';
   }, []);
 
+  // Fungsi untuk mapping data dari API ke struktur Song
+  const mapApiDataToSong = (apiData: any): Song => {
+    return {
+      artist: apiData.artist || apiData.artist_name || 'Unknown Artist',
+      title: apiData.title || apiData.name || 'Unknown Title',
+      url: apiData.url || apiData.audio_url || apiData.audio || '',
+      time: apiData.time || apiData.duration || apiData.length || '00:00',
+      cover: apiData.cover || apiData.image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
+      lyrics: apiData.lyrics || '',
+    };
+  };
+
+  const fetchLatestDrops = useCallback(async () => {
+    try {
+      setLoadingLatestDrops(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/musics');
+      
+      // Handle berbagai format response API
+      const data = response.data?.data || response.data || [];
+      
+      // Map data dari API ke struktur Song
+      const mappedSongs: Song[] = Array.isArray(data)
+        ? data.map(mapApiDataToSong)
+        : [];
+      
+      setLatestDrops(mappedSongs);
+    } catch (error: any) {
+      console.error('Error fetching latest drops:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Gagal memuat latest drops';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+      // Fallback ke SONGS jika error
+      setLatestDrops([...SONGS]);
+    } finally {
+      setLoadingLatestDrops(false);
+    }
+  }, [showToast]);
+
+  // Fungsi untuk mapping data dari API ke struktur MusicVideo
+  const mapApiDataToMusicVideo = (apiData: any): MusicVideo => {
+    return {
+      id: String(apiData.id || ''),
+      title: apiData.title || 'Unknown Title',
+      artist: apiData.artist || 'Unknown Artist',
+      cover: apiData.thumbnail || apiData.cover || FALLBACK_SONG_COVER,
+      videoUrl: apiData.video_url || apiData.videoUrl || undefined,
+    };
+  };
+
+  const fetchMusicVideos = useCallback(async () => {
+    try {
+      setLoadingMusicVideos(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/music-videos', {
+        params: {
+          page: 1,
+          limit: 5,
+        },
+      });
+      
+      // Handle struktur response: { success, data: [...], pagination }
+      const data = response.data?.data || [];
+      
+      // Map data dari API ke struktur MusicVideo
+      const mappedVideos: MusicVideo[] = Array.isArray(data)
+        ? data.map(mapApiDataToMusicVideo)
+        : [];
+      
+      setMusicVideos(mappedVideos);
+    } catch (error: any) {
+      console.error('Error fetching music videos:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Gagal memuat music videos';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+      // Set empty array jika error
+      setMusicVideos([]);
+    } finally {
+      setLoadingMusicVideos(false);
+    }
+  }, [showToast]);
+
+  // Fungsi untuk mapping data dari API ke struktur Podcast
+  const mapApiDataToPodcast = (apiData: any): Podcast => {
+    // Format duration dari "42:15" ke "42 min" atau tetap seperti aslinya
+    let formattedDuration = apiData.duration || '0:00';
+    // Jika format seperti "42:15", ubah ke "42 min"
+    if (formattedDuration.includes(':') && formattedDuration.split(':').length === 2) {
+      const [minutes, seconds] = formattedDuration.split(':');
+      const totalMinutes = parseInt(minutes, 10);
+      formattedDuration = `${totalMinutes} min`;
+    }
+    
+    return {
+      id: String(apiData.id || ''),
+      title: apiData.title || 'Unknown Title',
+      duration: formattedDuration,
+      cover: apiData.thumbnail || apiData.cover || FALLBACK_SONG_COVER,
+      audioUrl: apiData.audio_url || apiData.audioUrl || apiData.video_url || undefined,
+    };
+  };
+
+  const fetchPodcasts = useCallback(async () => {
+    try {
+      setLoadingPodcasts(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/podcasts', {
+        params: {
+          page: 1,
+          limit: 5,
+        },
+      });
+      
+      // Handle struktur response: { success, data: [...], pagination }
+      const data = response.data?.data || [];
+      
+      // Map data dari API ke struktur Podcast
+      const mappedPodcasts: Podcast[] = Array.isArray(data)
+        ? data.map(mapApiDataToPodcast)
+        : [];
+      
+      setPodcasts(mappedPodcasts);
+    } catch (error: any) {
+      console.error('Error fetching podcasts:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Gagal memuat podcasts';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+      // Set empty array jika error
+      setPodcasts([]);
+    } finally {
+      setLoadingPodcasts(false);
+    }
+  }, [showToast]);
+
+  // Fungsi untuk mapping data dari API ke struktur NewsItem
+  const mapApiDataToNewsItem = (apiData: NewsData, index: number) => {
+    // Format date dari published_at atau created_at
+    const dateString = apiData.published_at || apiData.created_at;
+    let formattedDate = '';
+    if (dateString) {
+      try {
+        const date = new Date(dateString);
+        formattedDate = date.toLocaleDateString('id-ID', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      } catch {
+        formattedDate = dateString;
+      }
+    }
+
+    // Gunakan image_url dari API atau fallback ke NEWS_BACKDROPS
+    const backdrop = apiData.image_url || NEWS_BACKDROPS[index % NEWS_BACKDROPS.length];
+
+    return {
+      id: String(apiData.id),
+      title: apiData.title || 'Untitled',
+      summary: apiData.summary || '',
+      date: formattedDate,
+      category: (apiData.category?.toLowerCase() as 'recommend' | 'popular' | 'new') || 'new',
+      content: apiData.content || '',
+      image_url: backdrop,
+    };
+  };
+
+  const fetchNews = useCallback(async () => {
+    try {
+      setLoadingNews(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/news', {
+        params: {
+          page: 1,
+          limit: 3,
+        },
+      });
+      
+      // Handle struktur response: { success, data: [...], pagination }
+      const data = response.data?.data || [];
+      
+      // Filter hanya yang is_published = true
+      const publishedNews = Array.isArray(data)
+        ? data.filter((item: NewsData) => item.is_published !== false)
+        : [];
+      
+      // Map data dari API ke struktur NewsData
+      setNewsData(publishedNews);
+    } catch (error: any) {
+      console.error('Error fetching news:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Gagal memuat news';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+      // Set empty array jika error
+      setNewsData([]);
+    } finally {
+      setLoadingNews(false);
+    }
+  }, [showToast]);
+
+  const fetchTopStreamed = useCallback(async () => {
+    try {
+      setLoadingTopStreamed(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/musics/top-streamed');
+      
+      // Handle struktur response: { success, data: [...], count }
+      const data = response.data?.data || [];
+      
+      // Map data dari API ke struktur Song
+      const mappedSongs: Song[] = Array.isArray(data)
+        ? data.map(mapApiDataToSong)
+        : [];
+      
+      setTopStreamedSongs(mappedSongs);
+    } catch (error: any) {
+      console.error('Error fetching top streamed:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Gagal memuat top streamed';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+      // Fallback ke SONGS jika error
+      setTopStreamedSongs([...SONGS].slice(0, 5));
+    } finally {
+      setLoadingTopStreamed(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchLatestDrops();
+    fetchMusicVideos();
+    fetchPodcasts();
+    fetchNews();
+    fetchTopStreamed();
+  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-
-    // If later you load data from API/storage, trigger it here
-    // For now we just simulate a short refresh and show a toast
-    setTimeout(() => {
+    Promise.all([fetchLatestDrops(), fetchMusicVideos(), fetchPodcasts(), fetchNews(), fetchTopStreamed()]).finally(() => {
       setRefreshing(false);
       showToast({ message: 'Home refreshed', type: 'info' });
-    }, 800);
-  }, [showToast]);
+    });
+  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, showToast]);
 
   const selectedGenres = profile.selectedGenres ?? [];
   const paddingTop = Math.max(insets.top, normalize(24));
@@ -209,16 +442,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
 
   const filteredSongs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+    const songsToFilter = latestDrops.length > 0 ? latestDrops : SONGS;
     if (!query) {
-      return SONGS;
+      return songsToFilter;
     }
-    return SONGS.filter(song => {
+    return songsToFilter.filter(song => {
       return (
         song.title.toLowerCase().includes(query) ||
         song.artist.toLowerCase().includes(query)
       );
     });
-  }, [searchQuery]);
+  }, [searchQuery, latestDrops]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { paddingTop, paddingBottom }]}>
@@ -257,9 +491,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                   <Text style={styles.name}>
                     {profile.full_name || 'User'}
                   </Text>
-                  {profile.email && (
-                    <Text style={styles.email}>{profile.email}</Text>
-                  )}
                 </View>
               </View>
             </View>
@@ -268,58 +499,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
               style={{ width: normalize(100), height: normalize(50) }}
             />
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.bestSongsScrollContent}
-          >
-            {/* Song #1 (large) */}
-            {SONGS.slice(0, 1).map(song => {
-              const isActive = currentSong?.url === song.url && isPlaying;
-              return (
-                <TouchableOpacity
-                  key={song.url}
-                  activeOpacity={0.85}
-                  style={[
-                    styles.bestSongCardLarge,
-                    isActive && styles.bestSongCardActive,
-                  ]}
-                  onPress={() => {
-                    playSong(song);
-                    showToast({
-                      message: `Playing ${song.title}`,
-                      type: 'info',
-                    });
-                  }}
-                >
-                  <BestSongCoverImage uri={song.cover} />
-                  <View style={styles.bestSongOverlay}>
-                    <View style={styles.bestSongBadge}>
-                      <Text style={styles.bestSongRank}>#1</Text>
-                    </View>
-                    <View style={styles.bestSongInfo}>
-                      <Text style={styles.bestSongTitle} numberOfLines={1}>
-                        {song.title}
-                      </Text>
-                      <Text style={styles.bestSongArtist} numberOfLines={1}>
-                        {song.artist}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            {/* Songs #2 and #3 (vertical column) */}
-            <View style={styles.bestSongsVerticalColumn}>
-              {SONGS.slice(1, 3).map((song, index) => {
+          {loadingTopStreamed && topStreamedSongs.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Memuat top streamed...</Text>
+            </View>
+          ) : topStreamedSongs.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.bestSongsScrollContent}
+            >
+              {/* Song #1 (large) */}
+              {topStreamedSongs.slice(0, 1).map(song => {
                 const isActive = currentSong?.url === song.url && isPlaying;
-                const rank = index + 2;
                 return (
                   <TouchableOpacity
-                    key={song.url}
+                    key={song.url || `top-1`}
                     activeOpacity={0.85}
                     style={[
-                      styles.bestSongCardSmall,
+                      styles.bestSongCardLarge,
                       isActive && styles.bestSongCardActive,
                     ]}
                     onPress={() => {
@@ -333,7 +532,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                     <BestSongCoverImage uri={song.cover} />
                     <View style={styles.bestSongOverlay}>
                       <View style={styles.bestSongBadge}>
-                        <Text style={styles.bestSongRank}>#{rank}</Text>
+                        <Text style={styles.bestSongRank}>#1</Text>
                       </View>
                       <View style={styles.bestSongInfo}>
                         <Text style={styles.bestSongTitle} numberOfLines={1}>
@@ -347,47 +546,90 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                   </TouchableOpacity>
                 );
               })}
-            </View>
-            {/* Songs #4 and #5 (vertical column) */}
-            <View style={styles.bestSongsVerticalColumn}>
-              {SONGS.slice(3, 5).map((song, index) => {
-                const isActive = currentSong?.url === song.url && isPlaying;
-                const rank = index + 4;
-                return (
-                  <TouchableOpacity
-                    key={song.url}
-                    activeOpacity={0.85}
-                    style={[
-                      styles.bestSongCardSmall,
-                      isActive && styles.bestSongCardActive,
-                    ]}
-                    onPress={() => {
-                      playSong(song);
-                      showToast({
-                        message: `Playing ${song.title}`,
-                        type: 'info',
-                      });
-                    }}
-                  >
-                    <BestSongCoverImage uri={song.cover} />
-                    <View style={styles.bestSongOverlay}>
-                      <View style={styles.bestSongBadge}>
-                        <Text style={styles.bestSongRank}>#{rank}</Text>
+              {/* Songs #2 and #3 (vertical column) */}
+              <View style={styles.bestSongsVerticalColumn}>
+                {topStreamedSongs.slice(1, 3).map((song, index) => {
+                  const isActive = currentSong?.url === song.url && isPlaying;
+                  const rank = index + 2;
+                  return (
+                    <TouchableOpacity
+                      key={song.url || `top-${rank}`}
+                      activeOpacity={0.85}
+                      style={[
+                        styles.bestSongCardSmall,
+                        isActive && styles.bestSongCardActive,
+                      ]}
+                      onPress={() => {
+                        playSong(song);
+                        showToast({
+                          message: `Playing ${song.title}`,
+                          type: 'info',
+                        });
+                      }}
+                    >
+                      <BestSongCoverImage uri={song.cover} />
+                      <View style={styles.bestSongOverlay}>
+                        <View style={styles.bestSongBadge}>
+                          <Text style={styles.bestSongRank}>#{rank}</Text>
+                        </View>
+                        <View style={styles.bestSongInfo}>
+                          <Text style={styles.bestSongTitle} numberOfLines={1}>
+                            {song.title}
+                          </Text>
+                          <Text style={styles.bestSongArtist} numberOfLines={1}>
+                            {song.artist}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.bestSongInfo}>
-                        <Text style={styles.bestSongTitle} numberOfLines={1}>
-                          {song.title}
-                        </Text>
-                        <Text style={styles.bestSongArtist} numberOfLines={1}>
-                          {song.artist}
-                        </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {/* Songs #4 and #5 (vertical column) */}
+              <View style={styles.bestSongsVerticalColumn}>
+                {topStreamedSongs.slice(3, 5).map((song, index) => {
+                  const isActive = currentSong?.url === song.url && isPlaying;
+                  const rank = index + 4;
+                  return (
+                    <TouchableOpacity
+                      key={song.url || `top-${rank}`}
+                      activeOpacity={0.85}
+                      style={[
+                        styles.bestSongCardSmall,
+                        isActive && styles.bestSongCardActive,
+                      ]}
+                      onPress={() => {
+                        playSong(song);
+                        showToast({
+                          message: `Playing ${song.title}`,
+                          type: 'info',
+                        });
+                      }}
+                    >
+                      <BestSongCoverImage uri={song.cover} />
+                      <View style={styles.bestSongOverlay}>
+                        <View style={styles.bestSongBadge}>
+                          <Text style={styles.bestSongRank}>#{rank}</Text>
+                        </View>
+                        <View style={styles.bestSongInfo}>
+                          <Text style={styles.bestSongTitle} numberOfLines={1}>
+                            {song.title}
+                          </Text>
+                          <Text style={styles.bestSongArtist} numberOfLines={1}>
+                            {song.artist}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Tidak ada top streamed</Text>
             </View>
-          </ScrollView>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -413,114 +655,149 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Podcasts</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.podcastScrollContent}
-          >
-            {PODCASTS.map(podcast => (
-              <TouchableOpacity
-                key={podcast.id}
-                activeOpacity={0.85}
-                style={styles.podcastCard}
-                onPress={() => {
-                  navigation.navigate('PodcastDetail', {
-                    id: podcast.id,
-                    title: podcast.title,
-                    duration: podcast.duration,
-                    cover: podcast.cover,
-                  });
-                }}
-              >
-                <Image
-                  source={{ uri: podcast.cover }}
-                  style={styles.podcastCover}
-                  resizeMode="cover"
-                />
-                <Text style={styles.podcastTitle} numberOfLines={2}>
-                  {podcast.title}
-                </Text>
-                <Text style={styles.podcastDuration}>{podcast.duration}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Music Video</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.musicVideoScrollContent}
-          >
-            {MUSIC_VIDEOS.map(video => (
-              <TouchableOpacity
-                key={video.id}
-                activeOpacity={0.85}
-                style={styles.musicVideoCard}
-                onPress={() => {
-                  navigation.navigate('MusicVideoDetail', {
-                    id: video.id,
-                    title: video.title,
-                    artist: video.artist,
-                    cover: video.cover,
-                  });
-                }}
-              >
-                <Image
-                  source={{ uri: video.cover }}
-                  style={styles.musicVideoCover}
-                  resizeMode="cover"
-                />
-                <Text style={styles.musicVideoTitle} numberOfLines={1}>
-                  {video.title}
-                </Text>
-                <Text style={styles.musicVideoArtist} numberOfLines={1}>
-                  {video.artist}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Latest drops</Text>
-          <View style={styles.songList}>
-            {filteredSongs.map(song => {
-              const isActive = currentSong?.url === song.url && isPlaying;
-              return (
+          {loadingPodcasts && podcasts.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Memuat podcasts...</Text>
+            </View>
+          ) : podcasts.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.podcastScrollContent}
+            >
+              {podcasts.map(podcast => (
                 <TouchableOpacity
-                  key={song.url}
+                  key={podcast.id}
                   activeOpacity={0.85}
-                  style={[styles.songRow, isActive && styles.songRowActive]}
+                  style={styles.podcastCard}
                   onPress={() => {
-                    playSong(song);
-                    showToast({
-                      message: `Playing ${song.title}`,
-                      type: 'info',
+                    navigation.navigate('PodcastDetail', {
+                      id: podcast.id,
+                      title: podcast.title,
+                      duration: podcast.duration,
+                      cover: podcast.cover,
+                      audioUrl: podcast.audioUrl,
                     });
                   }}
                 >
                   <Image
-                    source={{ uri: song.cover }}
-                    style={styles.songCover}
+                    source={{ uri: podcast.cover }}
+                    style={styles.podcastCover}
+                    resizeMode="cover"
                   />
-                  <View style={styles.songMeta}>
-                    <Text style={styles.songTitle}>{song.title}</Text>
-                    <Text style={styles.songArtist}>{song.artist}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.songDuration,
-                      isActive && styles.songDurationActive,
-                    ]}
-                  >
-                    {isActive ? 'Playing' : song.time}
+                  <Text style={styles.podcastTitle} numberOfLines={2}>
+                    {podcast.title}
+                  </Text>
+                  <Text style={styles.podcastDuration}>{podcast.duration}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Tidak ada podcasts</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Music Video</Text>
+          {loadingMusicVideos && musicVideos.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Memuat music videos...</Text>
+            </View>
+          ) : musicVideos.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.musicVideoScrollContent}
+            >
+              {musicVideos.map(video => (
+                <TouchableOpacity
+                  key={video.id}
+                  activeOpacity={0.85}
+                  style={styles.musicVideoCard}
+                  onPress={() => {
+                    navigation.navigate('MusicVideoDetail', {
+                      id: video.id,
+                      title: video.title,
+                      artist: video.artist,
+                      cover: video.cover,
+                      videoUrl: video.videoUrl,
+                    });
+                  }}
+                >
+                  <Image
+                    source={{ uri: video.cover }}
+                    style={styles.musicVideoCover}
+                    resizeMode="cover"
+                  />
+                  <Text style={styles.musicVideoTitle} numberOfLines={1}>
+                    {video.title}
+                  </Text>
+                  <Text style={styles.musicVideoArtist} numberOfLines={1}>
+                    {video.artist}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Tidak ada music videos</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Latest drops</Text>
+          {loadingLatestDrops && latestDrops.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Memuat latest drops...</Text>
+            </View>
+          ) : filteredSongs.length > 0 ? (
+            <View style={styles.songList}>
+              {filteredSongs.map((song, index) => {
+                const isActive = currentSong?.url === song.url && isPlaying;
+                return (
+                  <TouchableOpacity
+                    key={song.url || `song-${index}`}
+                    activeOpacity={0.85}
+                    style={[styles.songRow, isActive && styles.songRowActive]}
+                    onPress={() => {
+                      playSong(song);
+                      showToast({
+                        message: `Playing ${song.title}`,
+                        type: 'info',
+                      });
+                    }}
+                  >
+                    <Image
+                      source={{ uri: song.cover }}
+                      style={styles.songCover}
+                    />
+                    <View style={styles.songMeta}>
+                      <Text style={styles.songTitle}>{song.title}</Text>
+                      <Text style={styles.songArtist}>{song.artist}</Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.songDuration,
+                        isActive && styles.songDurationActive,
+                      ]}
+                    >
+                      {isActive ? 'Playing' : song.time}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Tidak ada latest drops</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -627,44 +904,52 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
               <Text style={styles.viewAllText}>View all</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.newsList}>
-            {NEWS.slice(0, 3).map((item, index) => {
-              const globalIndex = NEWS.findIndex(n => n.id === item.id);
-              const indexForCover = globalIndex >= 0 ? globalIndex : index;
-              const backdrop =
-                NEWS_BACKDROPS[indexForCover % NEWS_BACKDROPS.length];
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={0.9}
-                  onPress={() =>
-                    navigation.navigate('NewsDetail', {
-                      id: item.id,
-                    })
-                  }
-                >
-                  <ImageBackground
-                    source={{ uri: backdrop }}
-                    style={styles.newsCard}
-                    imageStyle={styles.newsCardBackgroundImage}
+          {loadingNews && newsData.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Memuat news...</Text>
+            </View>
+          ) : newsData.length > 0 ? (
+            <View style={styles.newsList}>
+              {newsData.map((item, index) => {
+                const mappedNews = mapApiDataToNewsItem(item, index);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      navigation.navigate('NewsDetail', {
+                        id: mappedNews.id,
+                      })
+                    }
                   >
-                    <View style={styles.newsCardOverlay} />
-                    <View style={styles.newsCardContent}>
-                      <View style={styles.newsMetaRow}>
-                        <Text style={styles.newsDate}>{item.date}</Text>
+                    <ImageBackground
+                      source={{ uri: mappedNews.image_url }}
+                      style={styles.newsCard}
+                      imageStyle={styles.newsCardBackgroundImage}
+                    >
+                      <View style={styles.newsCardOverlay} />
+                      <View style={styles.newsCardContent}>
+                        <View style={styles.newsMetaRow}>
+                          <Text style={styles.newsDate}>{mappedNews.date}</Text>
+                        </View>
+                        <Text style={styles.newsTitle} numberOfLines={2}>
+                          {mappedNews.title}
+                        </Text>
+                        <Text style={styles.newsSummary} numberOfLines={2}>
+                          {mappedNews.summary}
+                        </Text>
                       </View>
-                      <Text style={styles.newsTitle} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-                      <Text style={styles.newsSummary} numberOfLines={2}>
-                        {item.summary}
-                      </Text>
-                    </View>
-                  </ImageBackground>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    </ImageBackground>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Tidak ada news</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -1099,6 +1384,26 @@ const styles = StyleSheet.create({
   songDurationActive: {
     color: COLORS.primary,
     fontWeight: '700',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: normalize(40),
+    gap: normalize(12),
+  },
+  loadingText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(14),
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: normalize(40),
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: normalize(14),
+    fontStyle: 'italic',
   },
 });
 

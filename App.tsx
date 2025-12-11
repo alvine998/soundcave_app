@@ -22,6 +22,7 @@ import HelpScreen from './src/screens/Help';
 import EditProfileScreen from './src/screens/EditProfile';
 import NewsScreen from './src/screens/News';
 import NewsDetailScreen from './src/screens/NewsDetail';
+import MusicGenreScreen from './src/screens/MusicGenre';
 import HomeTabs from './src/navigation/HomeTabs';
 import {
   clearUserProfile,
@@ -62,6 +63,9 @@ type RootStackParamList = {
   News: undefined;
   NewsDetail: {
     id: string;
+  };
+  MusicGenre: {
+    genre: string;
   };
 };
 
@@ -333,6 +337,14 @@ function App() {
               <Stack.Screen
                 name="NewsDetail"
                 component={NewsDetailScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="MusicGenre"
+                component={MusicGenreScreen}
                 options={{
                   headerShown: false,
                   animation: 'slide_from_right',

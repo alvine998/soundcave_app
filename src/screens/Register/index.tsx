@@ -61,7 +61,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({
       const api = getPublicApiInstance();
       
       const requestData = {
-        fullName: fullName.trim(),
+        full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
         phone: phone.trim(),

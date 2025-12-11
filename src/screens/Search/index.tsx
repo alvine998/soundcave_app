@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   FlatList,
   ImageBackground,
@@ -9,12 +9,34 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import normalize from 'react-native-normalize';
 
 import { COLORS } from '../../config/color';
 import { useToast } from '../../components/Toast';
 import { getApiInstance } from '../../utils/api';
+import { usePlayer } from '../../components/Player';
+import { Song } from '../../storage/songs';
+import { HomeTabParamList } from '../../navigation/HomeTabs';
+
+type RootStackParamList = {
+  MusicGenre: {
+    genre: string;
+  };
+};
+
+type SearchScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<HomeTabParamList, 'Search'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+const FALLBACK_SONG_COVER =
+  'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
 
 type Genre = {
   id: string;
@@ -24,13 +46,30 @@ type Genre = {
 };
 
 const SearchScreen = () => {
+  const navigation = useNavigation<SearchScreenNavigationProp>();
   const [query, setQuery] = useState('');
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const { showToast } = useToast();
+  const { playSong, currentSong, isPlaying } = usePlayer();
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchGenres();
+  }, []);
+
+  // Fungsi untuk mapping data dari API ke struktur Song
+  const mapApiDataToSong = useCallback((apiData: any): Song => {
+    return {
+      artist: apiData.artist || apiData.artist_name || 'Unknown Artist',
+      title: apiData.title || apiData.name || 'Unknown Title',
+      url: apiData.url || apiData.audio_url || apiData.audio || '',
+      time: apiData.time || apiData.duration || apiData.length || '00:00',
+      cover: apiData.cover || apiData.image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
+      lyrics: apiData.lyrics || '',
+    };
   }, []);
 
   const fetchGenres = async () => {
@@ -44,7 +83,7 @@ const SearchScreen = () => {
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
-        'Failed to load genres';
+        'Gagal memuat genres';
       showToast({
         message: errorMessage,
         type: 'error',
@@ -54,13 +93,117 @@ const SearchScreen = () => {
     }
   };
 
-  const filteredGenres = genres.filter(genre => {
+  const searchMusic = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    try {
+      setSearching(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/musics', {
+        params: {
+          page: 1,
+          limit: 10,
+          search: searchQuery.trim(),
+        },
+      });
+      
+      // Handle berbagai format response API
+      const data = response.data?.data || response.data || [];
+      
+      // Map data dari API ke struktur Song
+      const mappedSongs: Song[] = Array.isArray(data)
+        ? data.map(mapApiDataToSong)
+        : [];
+      
+      setSearchResults(mappedSongs);
+    } catch (error: any) {
+      console.error('Error searching music:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Gagal mencari music';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, [mapApiDataToSong, showToast]);
+
+  // Debounce search
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (query.trim()) {
+      searchTimeoutRef.current = setTimeout(() => {
+        searchMusic(query);
+      }, 500);
+    } else {
+      setSearchResults([]);
+      setSearching(false);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [query, searchMusic]);
+
+  const filteredGenres = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return genre.name.toLowerCase().includes(q);
-  });
+    if (!q) return genres;
+    return genres.filter(genre => genre.name.toLowerCase().includes(q));
+  }, [genres, query]);
 
   const paddingBottom = normalize(100);
+
+  const renderSongItem = ({ item }: { item: Song }) => {
+    const isActive = currentSong?.url === item.url && isPlaying;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={[styles.songRow, isActive && styles.songRowActive]}
+        onPress={() => {
+          playSong(item);
+          showToast({
+            message: `Memutar ${item.title}`,
+            type: 'info',
+          });
+        }}
+      >
+        <Image
+          source={{ uri: item.cover }}
+          style={styles.songCover}
+          resizeMode="cover"
+        />
+        <View style={styles.songMeta}>
+          <Text style={styles.songTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={styles.songArtist} numberOfLines={1}>
+            {item.artist}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.songDuration,
+            isActive && styles.songDurationActive,
+          ]}
+        >
+          {isActive ? 'Playing' : item.time}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderGenreItem = ({ item, index }: { item: Genre; index: number }) => {
     const isEven = index % 2 === 0;
@@ -89,10 +232,7 @@ const SearchScreen = () => {
           !isEven && styles.genreCardRight,
         ]}
         onPress={() => {
-          showToast({
-            message: `Opening ${item.name}`,
-            type: 'info',
-          });
+          navigation.navigate('MusicGenre', { genre: item.name });
         }}>
         {item.image ? (
           <ImageBackground
@@ -117,30 +257,58 @@ const SearchScreen = () => {
         <Text style={styles.title}>Search</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search genres..."
+          placeholder="Cari music..."
           placeholderTextColor="rgba(255,255,255,0.4)"
           value={query}
           onChangeText={setQuery}
         />
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          </View>
+        {query.trim() ? (
+          // Show search results
+          searching ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Mencari music...</Text>
+            </View>
+          ) : (
+            <FlatList
+              key="search-results"
+              data={searchResults}
+              keyExtractor={(item, index) => item.url || `song-${index}`}
+              contentContainerStyle={[styles.songList, { paddingBottom }]}
+              showsVerticalScrollIndicator={false}
+              renderItem={renderSongItem}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    Tidak ada music ditemukan untuk "{query}"
+                  </Text>
+                </View>
+              }
+            />
+          )
         ) : (
-          <FlatList
-            data={filteredGenres}
-            keyExtractor={item => item.id || item.name}
-            numColumns={2}
-            contentContainerStyle={[styles.genreGrid, { paddingBottom }]}
-            showsVerticalScrollIndicator={false}
-            renderItem={renderGenreItem}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No genres found</Text>
-              </View>
-            }
-          />
+          // Show genres when no search query
+          loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+          ) : (
+            <FlatList
+              key="genres-list"
+              data={filteredGenres}
+              keyExtractor={item => item.id || item.name}
+              numColumns={2}
+              contentContainerStyle={[styles.genreGrid, { paddingBottom }]}
+              showsVerticalScrollIndicator={false}
+              renderItem={renderGenreItem}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Tidak ada genres</Text>
+                </View>
+              }
+            />
+          )
         )}
       </View>
     </SafeAreaView>
@@ -223,6 +391,54 @@ const styles = StyleSheet.create({
   emptyText: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: normalize(16),
+  },
+  loadingText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(14),
+    marginTop: normalize(12),
+  },
+  songList: {
+    gap: normalize(12),
+    paddingTop: normalize(8),
+  },
+  songRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: normalize(16),
+    gap: normalize(12),
+    padding: normalize(8),
+  },
+  songRowActive: {
+    borderColor: COLORS.primary,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  songCover: {
+    width: normalize(52),
+    height: normalize(52),
+    borderRadius: 12,
+    backgroundColor: '#222',
+  },
+  songMeta: {
+    flex: 1,
+  },
+  songTitle: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: normalize(15),
+  },
+  songArtist: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: normalize(13),
+    marginTop: normalize(2),
+  },
+  songDuration: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(13),
+  },
+  songDurationActive: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
 });
 

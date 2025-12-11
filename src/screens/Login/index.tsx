@@ -37,7 +37,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      showToast({ message: 'Please enter both email and password.', type: 'error' });
+      showToast({ message: 'Harap masukkan email dan password.', type: 'error' });
       return;
     }
 
@@ -50,32 +50,54 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
       });
 
       const responseData = response.data;
+      
+      // Handle struktur response: { success, message, data: { token, user } }
       if (responseData.success && responseData.data) {
         const { token, user } = responseData.data;
+
+        if (!token) {
+          showToast({
+            message: 'Token tidak ditemukan dalam response',
+            type: 'error',
+          });
+          return;
+        }
+
+        if (!user) {
+          showToast({
+            message: 'Data user tidak ditemukan dalam response',
+            type: 'error',
+          });
+          return;
+        }
 
         // Simpan token
         await saveToken(token);
 
-        // Simpan user profile
+        // Simpan user profile dengan mapping yang sesuai
         const userProfile: UserProfile = {
           id: user.id,
           full_name: user.full_name || '',
-          email: user.email,
-          phone: user.phone,
-          location: user.location,
-          bio: user.bio,
-          profile_image: user.profile_image,
-          role: user.role,
-          created_at: user.created_at,
-          updated_at: user.updated_at,
+          email: user.email || '',
+          phone: user.phone || undefined,
+          location: user.location || undefined,
+          bio: user.bio || undefined,
+          profile_image: user.profile_image || null,
+          role: user.role || 'user',
+          created_at: user.created_at || undefined,
+          updated_at: user.updated_at || undefined,
         };
+        
         await saveUserProfile(userProfile);
 
-        showToast({ message: responseData.message || 'Welcome back!', type: 'success' });
+        showToast({ 
+          message: responseData.message || 'Login berhasil!', 
+          type: 'success' 
+        });
         onSuccess(userProfile);
       } else {
         showToast({
-          message: responseData.message || 'Login failed. Please try again.',
+          message: responseData.message || 'Login gagal. Silakan coba lagi.',
           type: 'error',
         });
       }
@@ -83,7 +105,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
-        'Unable to verify your credentials right now. Please try again later.';
+        'Tidak dapat memverifikasi kredensial Anda saat ini. Silakan coba lagi nanti.';
       showToast({
         message: errorMessage,
         type: 'error',
@@ -132,7 +154,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           onPress={handleLogin}
         >
           <Text style={styles.primaryText}>
-            {submitting ? 'Checking...' : 'Login'}
+            {submitting ? 'Memeriksa...' : 'Masuk'}
           </Text>
         </TouchableOpacity>
 
