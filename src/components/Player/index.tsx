@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Image,
   Platform,
@@ -92,7 +93,8 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
   // Initialize MusicControl and setup event listeners
   useEffect(() => {
-    Sound.setCategory('Playback');
+    // Enable playback in silent mode for iOS
+    Sound.setCategory('Playback', true);
 
     // Initialize MusicControl
     if (Platform.OS === 'android' || Platform.OS === 'ios') {
@@ -228,6 +230,25 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
   const playSong = useCallback(
     (song: Song, forceRestart: boolean = false) => {
+      // Validate song URL before attempting to play
+      if (!song.url || song.url.trim() === '') {
+        console.error('Cannot play song: URL is empty', {
+          title: song.title,
+          artist: song.artist,
+          url: song.url,
+        });
+        Alert.alert(
+          'Tidak Dapat Memutar',
+          `URL audio untuk "${song.title}" tidak tersedia.`,
+          [{ text: 'OK' }]
+        );
+        setPlayerState(prev => ({
+          ...prev,
+          isLoading: false,
+        }));
+        return;
+      }
+
       // Use ref to get current song to avoid stale closure issues
       const currentSong = currentSongRef.current;
       
@@ -271,8 +292,17 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       const playback = new Sound(song.url, '', error => {
         if (error) {
           // Log error so we can see why audio failed to load (e.g. network / format issues)
-          // eslint-disable-next-line no-console
-          console.warn('Failed to load sound', song.url, error);
+          console.error('Failed to load sound:', {
+            url: song.url,
+            title: song.title,
+            artist: song.artist,
+            error: error,
+          });
+          Alert.alert(
+            'Gagal Memuat Audio',
+            `Tidak dapat memuat audio untuk "${song.title}".\n\nPastikan koneksi internet stabil dan URL audio valid.`,
+            [{ text: 'OK' }]
+          );
           setPlayerState({
             currentSong: null,
             isPlaying: false,
@@ -300,7 +330,28 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
           };
         });
 
-        playback.play(success => {
+        playback.play((success) => {
+          if (!success) {
+            console.error('Playback failed for song:', {
+              title: song.title,
+              artist: song.artist,
+              url: song.url,
+            });
+            Alert.alert(
+              'Gagal Memutar',
+              `Tidak dapat memutar "${song.title}".\n\nFormat audio mungkin tidak didukung atau file rusak.`,
+              [{ text: 'OK' }]
+            );
+            setPlayerState(prev => {
+              isPlayingRef.current = false;
+              updateMusicControl(prev.currentSong, false);
+              return {
+                ...prev,
+                isPlaying: false,
+              };
+            });
+            return;
+          }
           // This callback is called when playback finishes
           setPlayerState(prev => {
             isPlayingRef.current = false;
@@ -313,7 +364,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
         });
       });
     },
-    [playerState.currentSong, playerState.isPlaying, playerState.isLoading, pause, resume],
+    [playerState.currentSong, playerState.isPlaying, playerState.isLoading, pause, resume, updateMusicControl],
   );
 
   const nextSong = useCallback(() => {
