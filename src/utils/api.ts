@@ -8,6 +8,7 @@ export const getApiInstance = async (): Promise<AxiosInstance> => {
   if (!apiInstance) {
     apiInstance = axios.create({
       baseURL: CONFIG.BASE_URL,
+      timeout: 30000, // 30 detik timeout untuk mobile network
       headers: {
         'Content-Type': 'application/json',
       },
@@ -51,6 +52,7 @@ export const resetApiInstance = () => {
 export const getPublicApiInstance = (): AxiosInstance => {
   return axios.create({
     baseURL: CONFIG.BASE_URL,
+    timeout: 30000, // 30 detik timeout untuk mobile network
     headers: {
       'Content-Type': 'application/json',
     },

@@ -23,6 +23,8 @@ import EditProfileScreen from './src/screens/EditProfile';
 import NewsScreen from './src/screens/News';
 import NewsDetailScreen from './src/screens/NewsDetail';
 import MusicGenreScreen from './src/screens/MusicGenre';
+import PlaylistSongsScreen from './src/screens/PlaylistSongs';
+import ProfileScreen from './src/screens/Profile';
 import HomeTabs from './src/navigation/HomeTabs';
 import {
   clearUserProfile,
@@ -67,6 +69,12 @@ type RootStackParamList = {
   MusicGenre: {
     genre: string;
   };
+  PlaylistSongs: {
+    playlistId: number;
+    playlistName?: string;
+    playlistCover?: string;
+  };
+  Profile: undefined;
 };
 
 enableScreens(true);
@@ -350,6 +358,32 @@ function App() {
                   animation: 'slide_from_right',
                 }}
               />
+              <Stack.Screen
+                name="PlaylistSongs"
+                component={PlaylistSongsScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen name="Profile">
+                {props =>
+                  profile ? (
+                    <ProfileScreen
+                      {...props}
+                      profile={profile}
+                      onLogout={() => {
+                        handleLogout();
+                        props.navigation.reset({
+                          index: 0,
+                          routes: [{ name: 'Welcome' }],
+                        });
+                      }}
+                      onProfileUpdate={handleProfileUpdate}
+                    />
+                  ) : null
+                }
+              </Stack.Screen>
             </Stack.Navigator>
             </NavigationContainer>
           </PlayerProvider>

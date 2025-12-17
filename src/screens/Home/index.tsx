@@ -14,6 +14,9 @@ import {
 import normalize from 'react-native-normalize';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { HomeTabParamList } from '../../navigation/HomeTabs';
 
 import { usePlayer } from '../../components/Player';
 import { useToast } from '../../components/Toast';
@@ -44,11 +47,17 @@ type RootStackParamList = {
     cover: string;
     audioUrl?: string;
   };
+  PlaylistSongs: {
+    playlistId: number;
+    playlistName?: string;
+    playlistCover?: string;
+  };
+  Profile: undefined;
 };
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Home'
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<HomeTabParamList, 'Home'>,
+  NativeStackNavigationProp<RootStackParamList>
 >;
 
 type HomeScreenProps = {
@@ -161,6 +170,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
   const [loadingNews, setLoadingNews] = useState(true);
   const [topStreamedSongs, setTopStreamedSongs] = useState<readonly Song[]>([]);
   const [loadingTopStreamed, setLoadingTopStreamed] = useState(true);
+  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(true);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -198,10 +209,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
       setLatestDrops(mappedSongs);
     } catch (error: any) {
       console.error('Error fetching latest drops:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Gagal memuat latest drops';
+      
+      // Handle network errors dengan pesan yang lebih informatif
+      let errorMessage = 'Gagal memuat latest drops';
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        errorMessage = 'Koneksi timeout atau tidak stabil. Pastikan koneksi internet aktif dan coba lagi.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       showToast({
         message: errorMessage,
         type: 'error',
@@ -246,14 +264,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
       setMusicVideos(mappedVideos);
     } catch (error: any) {
       console.error('Error fetching music videos:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Gagal memuat music videos';
-      showToast({
-        message: errorMessage,
-        type: 'error',
-      });
+      
+      // Handle network errors dengan pesan yang lebih informatif
+      let errorMessage = 'Gagal memuat music videos';
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        errorMessage = 'Koneksi timeout atau tidak stabil. Pastikan koneksi internet aktif.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Hanya tampilkan toast jika bukan network error (untuk menghindari spam)
+      if (error.code !== 'ECONNABORTED' && error.message !== 'Network Error') {
+        showToast({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
       // Set empty array jika error
       setMusicVideos([]);
     } finally {
@@ -303,14 +331,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
       setPodcasts(mappedPodcasts);
     } catch (error: any) {
       console.error('Error fetching podcasts:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Gagal memuat podcasts';
-      showToast({
-        message: errorMessage,
-        type: 'error',
-      });
+      
+      // Handle network errors dengan pesan yang lebih informatif
+      let errorMessage = 'Gagal memuat podcasts';
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        errorMessage = 'Koneksi timeout atau tidak stabil. Pastikan koneksi internet aktif.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Hanya tampilkan toast jika bukan network error (untuk menghindari spam)
+      if (error.code !== 'ECONNABORTED' && error.message !== 'Network Error') {
+        showToast({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
       // Set empty array jika error
       setPodcasts([]);
     } finally {
@@ -373,14 +411,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
       setNewsData(publishedNews);
     } catch (error: any) {
       console.error('Error fetching news:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Gagal memuat news';
-      showToast({
-        message: errorMessage,
-        type: 'error',
-      });
+      
+      // Handle network errors dengan pesan yang lebih informatif
+      let errorMessage = 'Gagal memuat news';
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        errorMessage = 'Koneksi timeout atau tidak stabil. Pastikan koneksi internet aktif.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Hanya tampilkan toast jika bukan network error (untuk menghindari spam)
+      if (error.code !== 'ECONNABORTED' && error.message !== 'Network Error') {
+        showToast({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
       // Set empty array jika error
       setNewsData([]);
     } finally {
@@ -399,24 +447,80 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
       
       // Map data dari API ke struktur Song
       const mappedSongs: Song[] = Array.isArray(data)
-        ? data.map(mapApiDataToSong)
+        ? data.map(mapApiDataToSong).filter(song => {
+            // Filter out songs without valid URL
+            return song.url && song.url.trim() !== '';
+          })
         : [];
       
       setTopStreamedSongs(mappedSongs);
     } catch (error: any) {
       console.error('Error fetching top streamed:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Gagal memuat top streamed';
-      showToast({
-        message: errorMessage,
-        type: 'error',
-      });
+      
+      // Handle network errors dengan pesan yang lebih informatif
+      let errorMessage = 'Gagal memuat top streamed';
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        errorMessage = 'Koneksi timeout atau tidak stabil. Pastikan koneksi internet aktif.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Hanya tampilkan toast jika bukan network error (untuk menghindari spam)
+      if (error.code !== 'ECONNABORTED' && error.message !== 'Network Error') {
+        showToast({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
       // Fallback ke SONGS jika error
       setTopStreamedSongs([...SONGS].slice(0, 5));
     } finally {
       setLoadingTopStreamed(false);
+    }
+  }, [showToast]);
+
+  const fetchPlaylists = useCallback(async () => {
+    try {
+      setLoadingPlaylists(true);
+      const api = await getApiInstance();
+      const response = await api.get('/api/playlists', {
+        params: {
+          page: 1,
+          limit: 10,
+          is_public: true,
+        },
+      });
+      
+      // Handle struktur response: { success, data: [...], pagination }
+      const data = response.data?.data || [];
+      
+      setPlaylists(data);
+    } catch (error: any) {
+      console.error('Error fetching playlists:', error);
+      
+      // Handle network errors dengan pesan yang lebih informatif
+      let errorMessage = 'Gagal memuat playlists';
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        errorMessage = 'Koneksi timeout atau tidak stabil. Pastikan koneksi internet aktif.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Hanya tampilkan toast jika bukan network error (untuk menghindari spam)
+      if (error.code !== 'ECONNABORTED' && error.message !== 'Network Error') {
+        showToast({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
+      // Set empty array jika error
+      setPlaylists([]);
+    } finally {
+      setLoadingPlaylists(false);
     }
   }, [showToast]);
 
@@ -426,15 +530,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     fetchPodcasts();
     fetchNews();
     fetchTopStreamed();
-  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed]);
+    fetchPlaylists();
+  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    Promise.all([fetchLatestDrops(), fetchMusicVideos(), fetchPodcasts(), fetchNews(), fetchTopStreamed()]).finally(() => {
+    Promise.all([fetchLatestDrops(), fetchMusicVideos(), fetchPodcasts(), fetchNews(), fetchTopStreamed(), fetchPlaylists()]).finally(() => {
       setRefreshing(false);
       showToast({ message: 'Home refreshed', type: 'info' });
     });
-  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, showToast]);
+  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, showToast]);
 
   const selectedGenres = profile.selectedGenres ?? [];
   const paddingTop = Math.max(insets.top, normalize(24));
@@ -473,19 +578,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.profileInfo}>
-                {profile.profile_image ? (
-                  <Image
-                    source={{ uri: profile.profile_image }}
-                    style={styles.profileImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.profileImagePlaceholder}>
-                    <Text style={styles.profileImageText}>
-                      {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                    </Text>
-                  </View>
-                )}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('Profile')}
+                >
+                  {profile.profile_image ? (
+                    <Image
+                      source={{ uri: profile.profile_image }}
+                      style={styles.profileImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.profileImagePlaceholder}>
+                      <Text style={styles.profileImageText}>
+                        {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
                 <View style={styles.profileTextContainer}>
                   <Text style={styles.greeting}>{greeting}</Text>
                   <Text style={styles.name}>
@@ -522,6 +632,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                       isActive && styles.bestSongCardActive,
                     ]}
                     onPress={() => {
+                      if (!song.url || song.url.trim() === '') {
+                        showToast({
+                          message: `Audio tidak tersedia untuk ${song.title}`,
+                          type: 'error',
+                        });
+                        return;
+                      }
                       playSong(song);
                       showToast({
                         message: `Playing ${song.title}`,
@@ -766,6 +883,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                     activeOpacity={0.85}
                     style={[styles.songRow, isActive && styles.songRowActive]}
                     onPress={() => {
+                      if (!song.url || song.url.trim() === '') {
+                        showToast({
+                          message: `Audio tidak tersedia untuk ${song.title}`,
+                          type: 'error',
+                        });
+                        return;
+                      }
                       playSong(song);
                       showToast({
                         message: `Playing ${song.title}`,
@@ -822,18 +946,53 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top playlists</Text>
-          <View style={styles.playlistGrid}>
-            {TOP_PLAYLISTS.map(item => (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.85}
-                style={styles.playlistCard}
-              >
-                <Text style={styles.playlistTitle}>{item.title}</Text>
-                <Text style={styles.playlistSubtitle}>{item.description}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {loadingPlaylists && playlists.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Memuat playlists...</Text>
+            </View>
+          ) : playlists.length > 0 ? (
+            <View style={styles.playlistGrid}>
+              {playlists.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={0.85}
+                  style={styles.playlistCard}
+                  onPress={() => {
+                    navigation.navigate('PlaylistSongs', {
+                      playlistId: item.id,
+                      playlistName: item.name,
+                      playlistCover: item.cover_image || undefined,
+                    });
+                  }}
+                >
+                  {item.cover_image ? (
+                    <Image
+                      source={{ uri: item.cover_image }}
+                      style={styles.playlistCoverImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.playlistCoverPlaceholder}>
+                      <Text style={styles.playlistCoverText}>
+                        {item.name?.charAt(0)?.toUpperCase() || 'P'}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.playlistTitle} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.playlistSubtitle} numberOfLines={2}>
+                    {item.description || 'No description'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Tidak ada playlists</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -1167,15 +1326,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#101010',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    gap: normalize(12),
+  },
+  playlistCoverImage: {
+    width: '100%',
+    height: normalize(120),
+    borderRadius: normalize(12),
+    backgroundColor: '#222',
+  },
+  playlistCoverPlaceholder: {
+    width: '100%',
+    height: normalize(120),
+    borderRadius: normalize(12),
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playlistCoverText: {
+    color: '#fff',
+    fontSize: normalize(32),
+    fontWeight: '700',
   },
   playlistTitle: {
     color: '#fff',
     fontWeight: '700',
-    marginBottom: normalize(6),
+    fontSize: normalize(14),
+    marginBottom: normalize(4),
   },
   playlistSubtitle: {
     color: 'rgba(255,255,255,0.65)',
     fontSize: normalize(12),
+    lineHeight: normalize(16),
   },
   verticalStack: {
     gap: normalize(14),

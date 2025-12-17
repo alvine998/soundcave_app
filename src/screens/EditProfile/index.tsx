@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Alert,
   Image,
@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +20,9 @@ import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import ImagePicker from 'react-native-image-crop-picker';
 
 import { COLORS } from '../../config/color';
-import { UserProfile } from '../../storage/userStorage';
+import { UserProfile, getUserProfile, updateUserProfile } from '../../storage/userStorage';
+import { getApiInstance } from '../../utils/api';
+import { useToast } from '../../components/Toast';
 
 type RootStackParamList = {
   EditProfile: {
@@ -38,14 +41,57 @@ const EditProfileScreen: React.FC = () => {
   const navigation = useNavigation<EditProfileNavigationProp>();
   const route = useRoute<EditProfileRouteProp>();
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
 
   const { profile, onSave } = route.params;
 
-  const [fullName, setFullName] = useState(profile.fullName);
-  const [email, setEmail] = useState(profile.email);
-  const [phone, setPhone] = useState('');
-  const [bio, setBio] = useState('');
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [fullName, setFullName] = useState(profile.full_name || '');
+  const [email, setEmail] = useState(profile.email || '');
+  const [phone, setPhone] = useState(profile.phone || '');
+  const [location, setLocation] = useState(profile.location || '');
+  const [bio, setBio] = useState(profile.bio || '');
+  const [profileImage, setProfileImage] = useState<string | null>(profile.profile_image || null);
+  const [selectedImagePath, setSelectedImagePath] = useState<string | null>(null);
+
+  // Fetch user profile dari API
+  const fetchUserProfile = useCallback(async () => {
+    if (!profile.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const api = await getApiInstance();
+      const response = await api.get(`/api/users/${profile.id}`);
+      
+      const userData = response.data?.data || response.data;
+      
+      if (userData) {
+        setFullName(userData.full_name || '');
+        setEmail(userData.email || '');
+        setPhone(userData.phone || '');
+        setLocation(userData.location || '');
+        setBio(userData.bio || '');
+        setProfileImage(userData.profile_image || null);
+      }
+    } catch (error: any) {
+      console.error('Error fetching user profile:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Gagal memuat profile';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [profile.id, showToast]);
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [fetchUserProfile]);
 
   const handleChangePhoto = () => {
     ImagePicker.openPicker({
@@ -58,18 +104,51 @@ const EditProfileScreen: React.FC = () => {
       includeBase64: false,
     })
       .then(image => {
+        setSelectedImagePath(image.path);
         setProfileImage(image.path);
-        Alert.alert('Success', 'Photo selected! (Temporary - not saved yet)');
       })
       .catch(error => {
         if (error.code !== 'E_PICKER_CANCELLED') {
-          Alert.alert('Error', 'Failed to select photo. Please try again.');
+          Alert.alert('Error', 'Gagal memilih foto. Silakan coba lagi.');
           console.error('ImagePicker Error:', error);
         }
       });
   };
 
-  const handleSave = () => {
+  // Upload image ke API
+  const uploadImage = useCallback(async (imagePath: string): Promise<string | null> => {
+    try {
+      const api = await getApiInstance();
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', {
+        uri: imagePath,
+        type: 'image/jpeg',
+        name: 'profile_image.jpg',
+      } as any);
+
+      const response = await api.post('/api/images/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Response structure: { success, message, data: { file_url, ... } }
+      const imageUrl = response.data?.data?.file_url;
+      return imageUrl || null;
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Gagal mengupload foto';
+      showToast({
+        message: errorMessage,
+        type: 'error',
+      });
+      return null;
+    }
+  }, [showToast]);
+
+  const handleSave = async () => {
     if (!fullName.trim()) {
       Alert.alert('Error', 'Nama tidak boleh kosong.');
       return;
@@ -80,20 +159,71 @@ const EditProfileScreen: React.FC = () => {
       return;
     }
 
-    const updatedProfile: UserProfile = {
-      ...profile,
-      fullName: fullName.trim(),
-      email: email.trim(),
-    };
+    if (!profile.id) {
+      Alert.alert('Error', 'User ID tidak ditemukan.');
+      return;
+    }
 
-    onSave(updatedProfile);
-    
-    Alert.alert('Berhasil', 'Profile berhasil diupdate!', [
-      {
-        text: 'OK',
-        onPress: () => navigation.goBack(),
-      },
-    ]);
+    try {
+      setSaving(true);
+      const api = await getApiInstance();
+
+      // Upload image jika ada image baru yang dipilih
+      let uploadedImageUrl = profileImage;
+      if (selectedImagePath && selectedImagePath !== profile.profile_image) {
+        const uploadedUrl = await uploadImage(selectedImagePath);
+        if (uploadedUrl) {
+          uploadedImageUrl = uploadedUrl;
+        } else {
+          // Jika upload gagal, tetap lanjutkan dengan image yang lama
+          uploadedImageUrl = profile.profile_image || null;
+        }
+      }
+
+      // Update profile via PUT API
+      const updateData: any = {
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim() || null,
+        location: location.trim() || null,
+        bio: bio.trim() || null,
+      };
+
+      // Hanya update profile_image jika ada perubahan
+      if (uploadedImageUrl !== profile.profile_image) {
+        updateData.profile_image = uploadedImageUrl;
+      }
+
+      const response = await api.put(`/api/users/${profile.id}`, updateData);
+      const updatedUserData = response.data?.data || response.data;
+
+      // Update local storage
+      const updatedProfile: UserProfile = {
+        ...profile,
+        full_name: updatedUserData.full_name || fullName.trim(),
+        email: updatedUserData.email || email.trim(),
+        phone: updatedUserData.phone || phone.trim() || undefined,
+        location: updatedUserData.location || location.trim() || undefined,
+        bio: updatedUserData.bio || bio.trim() || undefined,
+        profile_image: updatedUserData.profile_image || uploadedImageUrl || null,
+      };
+
+      await updateUserProfile(updatedProfile);
+      onSave(updatedProfile);
+
+      showToast({
+        message: 'Profile berhasil diupdate!',
+        type: 'success',
+      });
+
+      navigation.goBack();
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Gagal mengupdate profile';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -116,32 +246,45 @@ const EditProfileScreen: React.FC = () => {
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <TouchableOpacity
             onPress={handleSave}
-            style={styles.saveButton}
-            activeOpacity={0.7}>
-            <Text style={styles.saveButtonText}>Save</Text>
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            activeOpacity={0.7}
+            disabled={saving || loading}>
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Profile Picture Section */}
-        <View style={styles.profilePictureSection}>
-          <View style={styles.profilePictureContainer}>
-            {profileImage ? (
-              <Image
-                source={{ uri: profileImage }}
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <FontAwesome6 name="user" size={48} color="#fff" />
-            )}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Memuat profile...</Text>
           </View>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.changePhotoButton}
-            onPress={handleChangePhoto}>
-            <Text style={styles.changePhotoText}>Change Photo</Text>
-          </TouchableOpacity>
-        </View>
+        ) : (
+          <>
+            {/* Profile Picture Section */}
+            <View style={styles.profilePictureSection}>
+              <View style={styles.profilePictureContainer}>
+                {profileImage ? (
+                  <Image
+                    source={{ uri: profileImage }}
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <FontAwesome6 name="user" size={48} color="#fff" />
+                )}
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.changePhotoButton}
+                onPress={handleChangePhoto}
+                disabled={saving}>
+                <Text style={styles.changePhotoText}>Change Photo</Text>
+              </TouchableOpacity>
+            </View>
 
         {/* Form */}
         <View style={styles.formContainer}>
@@ -153,6 +296,7 @@ const EditProfileScreen: React.FC = () => {
               placeholderTextColor="rgba(255,255,255,0.4)"
               value={fullName}
               onChangeText={setFullName}
+              editable={!saving}
             />
           </View>
 
@@ -166,6 +310,7 @@ const EditProfileScreen: React.FC = () => {
               autoCapitalize="none"
               value={email}
               onChangeText={setEmail}
+              editable={!saving}
             />
           </View>
 
@@ -178,6 +323,19 @@ const EditProfileScreen: React.FC = () => {
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
+              editable={!saving}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Lokasi</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Jakarta, Indonesia"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              value={location}
+              onChangeText={setLocation}
+              editable={!saving}
             />
           </View>
 
@@ -192,11 +350,14 @@ const EditProfileScreen: React.FC = () => {
               textAlignVertical="top"
               value={bio}
               onChangeText={setBio}
+              editable={!saving}
             />
           </View>
 
           <Text style={styles.note}>* Field wajib diisi</Text>
         </View>
+          </>
+        )}
 
         {/* Account Settings */}
         <View style={styles.section}>
@@ -429,6 +590,20 @@ const styles = StyleSheet.create({
     color: 'rgba(255,100,100,0.9)',
     fontSize: normalize(15),
     fontWeight: '700',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: normalize(60),
+    gap: normalize(16),
+  },
+  loadingText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(14),
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
 });
 

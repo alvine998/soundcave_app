@@ -200,7 +200,7 @@ const NewsDetailScreen: React.FC = () => {
         contentContainerStyle={[styles.scrollContent, { paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ padding: normalize(10) }}>
+        <View style={{ padding: normalize(10), paddingHorizontal:normalize(20) }}>
           <Text style={styles.newsTitle}>{newsData.title}</Text>
           <View style={styles.metaRow}>
             {formattedDate && (
@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
     gap: normalize(12),
     backgroundColor: COLORS.purple,
     padding: normalize(16),
+    paddingHorizontal:normalize(20),
     borderTopEndRadius: normalize(25),
     borderTopStartRadius: normalize(25),
     height: '100%',

@@ -9,10 +9,10 @@ import { COLORS } from '../config/color';
 import HomeScreen from '../screens/Home';
 import PlaylistScreen from '../screens/Playlist';
 import SearchScreen from '../screens/Search';
-import ProfileScreen from '../screens/Profile';
 import { UserProfile } from '../storage/userStorage';
 import normalize from 'react-native-normalize';
 import NewsScreen from '../screens/News';
+import CavelistScreen from '../screens/Cavelist';
 
 type HomeTabsProps = {
   profile: UserProfile;
@@ -21,11 +21,11 @@ type HomeTabsProps = {
 };
 
 export type HomeTabParamList = {
-  Home: undefined;
   News: undefined;
-  Search: undefined;
+  Cavelist: undefined;
+  Home: undefined;
   Playlist: undefined;
-  Profile: undefined;
+  Search: undefined;
 };
 
 const Tab = createBottomTabNavigator<HomeTabParamList>();
@@ -95,23 +95,14 @@ const HomeTabs: React.FC<HomeTabsProps> = ({
       })}
     >
       <Tab.Screen name="News" component={NewsScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Cavelist" component={CavelistScreen} />
       <Tab.Screen name="Home">
         {props => (
           <HomeScreen {...props} profile={profile} onLogout={onLogout} />
         )}
       </Tab.Screen>
       <Tab.Screen name="Playlist" component={PlaylistScreen} />
-      <Tab.Screen name="Profile">
-        {props => (
-          <ProfileScreen
-            {...props}
-            profile={profile}
-            onLogout={onLogout}
-            onProfileUpdate={onProfileUpdate}
-          />
-        )}
-      </Tab.Screen>
+      <Tab.Screen name="Search" component={SearchScreen} />
     </Tab.Navigator>
   );
 };
@@ -122,12 +113,12 @@ const getIconName = (route: string) => {
       return 'house';
     case 'News':
       return 'bullhorn';
+    case 'Cavelist':
+      return 'play';
     case 'Search':
       return 'magnifying-glass';
     case 'Playlist':
       return 'list';
-    case 'Profile':
-      return 'user';
     default:
       return 'circle';
   }

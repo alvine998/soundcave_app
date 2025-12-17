@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Image,
   Modal,
   SafeAreaView,
   StyleSheet,
@@ -40,8 +41,13 @@ const PREMIUM_BENEFITS = [
   'Early access to exclusive drops & live sets',
 ];
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout, onProfileUpdate }) => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+const ProfileScreen: React.FC<ProfileScreenProps> = ({
+  profile,
+  onLogout,
+  onProfileUpdate,
+}) => {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -60,10 +66,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout, onProf
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.name}>{profile.fullName}</Text>
+            <Text style={styles.name}>{profile?.full_name}</Text>
           </View>
           <TouchableOpacity activeOpacity={0.8} style={styles.profilePicture}>
-            <FontAwesome6 name="user" size={15} color="#fff" />
+            {profile?.profile_image ? (
+              <Image
+                source={{ uri: profile?.profile_image }}
+                style={styles.profilePicture}
+              />
+            ) : (
+              <FontAwesome6 name="user" size={15} color="#fff" />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -80,13 +93,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onLogout, onProf
               profile,
               onSave: handleSaveProfile,
             })
-          }>
+          }
+        >
           <Text style={styles.editProfileText}>Edit Profile</Text>
         </TouchableOpacity>
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{profile.selectedGenres?.length || 0}</Text>
+            <Text style={styles.statNumber}>
+              {profile.selectedGenres?.length || 0}
+            </Text>
             <Text style={styles.statLabel}>Genres</Text>
           </View>
           <View style={styles.statCard}>
