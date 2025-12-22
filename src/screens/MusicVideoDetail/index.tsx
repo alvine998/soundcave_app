@@ -323,22 +323,22 @@ const MusicVideoDetailScreen: React.FC = () => {
             </>
           ) : (
             <>
-              <Image
+          <Image
                 source={{ uri: thumbnailImage }}
-                style={styles.video}
-                resizeMode="cover"
+            style={styles.video}
+            resizeMode="cover"
+          />
+          <View style={styles.controlsOverlay}>
+            <View style={styles.playPauseButton}>
+              <FontAwesome6
+                name="play"
+                size={40}
+                color="#fff"
               />
-              <View style={styles.controlsOverlay}>
-                <View style={styles.playPauseButton}>
-                  <FontAwesome6
-                    name="play"
-                    size={40}
-                    color="#fff"
-                  />
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={styles.fullscreenButton}
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.fullscreenButton}
                   onPress={() => {
                     Alert.alert(
                       'Video Tidak Tersedia',
@@ -346,10 +346,10 @@ const MusicVideoDetailScreen: React.FC = () => {
                       [{ text: 'OK' }],
                     );
                   }}>
-                  <FontAwesome6 name="play" size={20} color="#fff" />
-                  <Text style={styles.fullscreenButtonText}>Putar</Text>
-                </TouchableOpacity>
-              </View>
+              <FontAwesome6 name="play" size={20} color="#fff" />
+              <Text style={styles.fullscreenButtonText}>Putar</Text>
+            </TouchableOpacity>
+          </View>
             </>
           )}
         </View>

@@ -150,16 +150,16 @@ const PodcastDetailScreen: React.FC = () => {
 
     // Cek apakah video_url ada dan tidak kosong
     if (!videoUrl || videoUrl.trim() === '') {
-      Alert.alert(
+    Alert.alert(
         'Video Tidak Tersedia',
         `Video untuk podcast "${podcastTitle}" tidak tersedia saat ini.\n\nSilakan coba lagi nanti.`,
-        [
-          {
-            text: 'OK',
-            style: 'default',
-          },
-        ],
-      );
+      [
+        {
+          text: 'OK',
+          style: 'default',
+        },
+      ],
+    );
       return;
     }
 
@@ -349,18 +349,18 @@ const PodcastDetailScreen: React.FC = () => {
             </>
           ) : (
             <>
-              <Image
+          <Image
                 source={{ uri: coverImage }}
-                style={styles.playerCover}
-                resizeMode="cover"
-              />
-              <View style={styles.coverOverlay}>
-                <View style={styles.podcastBadge}>
-                  <FontAwesome6 name="podcast" size={32} color="#fff" />
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={styles.fullscreenButton}
+            style={styles.playerCover}
+            resizeMode="cover"
+          />
+          <View style={styles.coverOverlay}>
+            <View style={styles.podcastBadge}>
+              <FontAwesome6 name="podcast" size={32} color="#fff" />
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.fullscreenButton}
                   onPress={() => {
                     Alert.alert(
                       'Video Tidak Tersedia',
@@ -368,10 +368,10 @@ const PodcastDetailScreen: React.FC = () => {
                       [{ text: 'OK' }],
                     );
                   }}>
-                  <FontAwesome6 name="play" size={20} color="#fff" />
-                  <Text style={styles.fullscreenButtonText}>Putar</Text>
-                </TouchableOpacity>
-              </View>
+              <FontAwesome6 name="play" size={20} color="#fff" />
+              <Text style={styles.fullscreenButtonText}>Putar</Text>
+            </TouchableOpacity>
+          </View>
             </>
           )}
         </View>
@@ -434,19 +434,19 @@ const PodcastDetailScreen: React.FC = () => {
             <Text style={styles.episodesTitle}>Episode Info</Text>
             <View style={styles.episodesList}>
               <View style={styles.episodeCard}>
-                <View style={styles.episodeNumber}>
+                  <View style={styles.episodeNumber}>
                   <Text style={styles.episodeNumberText}>
                     {podcastData.episode_number || '1'}
                   </Text>
-                </View>
-                <View style={styles.episodeInfo}>
-                  <Text style={styles.episodeTitle} numberOfLines={2}>
+                  </View>
+                  <View style={styles.episodeInfo}>
+                    <Text style={styles.episodeTitle} numberOfLines={2}>
                     {podcastData.title}
-                  </Text>
+                    </Text>
                   <Text style={styles.episodeDescription} numberOfLines={3}>
                     {podcastData.description || 'Tidak ada deskripsi tersedia.'}
-                  </Text>
-                  <View style={styles.episodeMeta}>
+                    </Text>
+                    <View style={styles.episodeMeta}>
                     <Text style={styles.episodeMetaText}>{formattedDuration}</Text>
                     {podcastData.release_date && (
                       <>
@@ -458,21 +458,21 @@ const PodcastDetailScreen: React.FC = () => {
                     )}
                     {podcastData.season && (
                       <>
-                        <Text style={styles.episodeMetaText}>•</Text>
+                      <Text style={styles.episodeMetaText}>•</Text>
                         <Text style={styles.episodeMetaText}>Season {podcastData.season}</Text>
                       </>
                     )}
+                    </View>
                   </View>
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={styles.episodePlayButton}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.episodePlayButton}
                   onPress={handlePlayPause}>
-                  <FontAwesome6
+                    <FontAwesome6
                     name={isPlaying ? "pause" : "play"}
-                    size={16}
-                    color="#fff"
-                  />
+                      size={16}
+                      color="#fff"
+                    />
                 </TouchableOpacity>
               </View>
             </View>

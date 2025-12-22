@@ -67,7 +67,16 @@ const MusicGenreScreen: React.FC = () => {
     };
   }, []);
 
-  const fetchSongs = useCallback(async (pageNum: number = 1, reset: boolean = false) => {
+  // Memoize fetchSongs dengan dependency yang benar
+  const fetchSongsMemoized = useCallback(async (pageNum: number = 1, reset: boolean = false) => {
+    if (!genre || !genre.trim()) {
+      console.warn('Genre is empty, cannot fetch songs');
+      setLoading(false);
+      setLoadingMore(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       if (pageNum === 1) {
         setLoading(true);
@@ -80,7 +89,7 @@ const MusicGenreScreen: React.FC = () => {
         params: {
           page: pageNum,
           limit: 10,
-          genre: genre,
+          genre: genre.trim(),
         },
       });
       
@@ -123,19 +132,25 @@ const MusicGenreScreen: React.FC = () => {
   }, [genre, mapApiDataToSong, showToast]);
 
   useEffect(() => {
-    fetchSongs(1, true);
-  }, [fetchSongs]);
+    // Reset state ketika genre berubah
+    setPage(1);
+    setHasMore(true);
+    setTotalPages(1);
+    setSongs([]);
+    fetchSongsMemoized(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genre]);
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore && !loading) {
-      fetchSongs(page + 1, false);
+      fetchSongsMemoized(page + 1, false);
     }
   };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchSongs(1, true);
-  }, [fetchSongs]);
+    fetchSongsMemoized(1, true);
+  }, [fetchSongsMemoized]);
 
   const renderSongItem = ({ item }: { item: Song }) => {
     const isActive = currentSong?.url === item.url && isPlaying;

@@ -198,8 +198,8 @@ const EditProfileScreen: React.FC = () => {
       const updatedUserData = response.data?.data || response.data;
 
       // Update local storage
-      const updatedProfile: UserProfile = {
-        ...profile,
+    const updatedProfile: UserProfile = {
+      ...profile,
         full_name: updatedUserData.full_name || fullName.trim(),
         email: updatedUserData.email || email.trim(),
         phone: updatedUserData.phone || phone.trim() || undefined,
@@ -209,8 +209,8 @@ const EditProfileScreen: React.FC = () => {
       };
 
       await updateUserProfile(updatedProfile);
-      onSave(updatedProfile);
-
+    onSave(updatedProfile);
+    
       showToast({
         message: 'Profile berhasil diupdate!',
         type: 'success',
@@ -252,7 +252,7 @@ const EditProfileScreen: React.FC = () => {
             {saving ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>Save</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -264,27 +264,27 @@ const EditProfileScreen: React.FC = () => {
           </View>
         ) : (
           <>
-            {/* Profile Picture Section */}
-            <View style={styles.profilePictureSection}>
-              <View style={styles.profilePictureContainer}>
-                {profileImage ? (
-                  <Image
-                    source={{ uri: profileImage }}
-                    style={styles.profileImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <FontAwesome6 name="user" size={48} color="#fff" />
-                )}
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={styles.changePhotoButton}
+        {/* Profile Picture Section */}
+        <View style={styles.profilePictureSection}>
+          <View style={styles.profilePictureContainer}>
+            {profileImage ? (
+              <Image
+                source={{ uri: profileImage }}
+                style={styles.profileImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <FontAwesome6 name="user" size={48} color="#fff" />
+            )}
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.changePhotoButton}
                 onPress={handleChangePhoto}
                 disabled={saving}>
-                <Text style={styles.changePhotoText}>Change Photo</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.changePhotoText}>Change Photo</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Form */}
         <View style={styles.formContainer}>

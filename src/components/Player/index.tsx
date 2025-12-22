@@ -34,18 +34,23 @@ type PlayerState = {
   currentSong: Song | null;
   isPlaying: boolean;
   isLoading: boolean;
+  currentTime: number;
+  duration: number;
 };
 
 type PlayerContextValue = {
   currentSong: Song | null;
   isPlaying: boolean;
   isLoading: boolean;
+  currentTime: number;
+  duration: number;
   playSong: (song: Song) => void;
   pause: () => void;
   resume: () => void;
   nextSong: () => void;
   previousSong: () => void;
   stop: () => void;
+  seek: (time: number) => void;
 };
 
 type PlayerProviderProps = {
@@ -58,12 +63,15 @@ const PlayerContext = createContext<PlayerContextValue>({
   currentSong: null,
   isPlaying: false,
   isLoading: false,
+  currentTime: 0,
+  duration: 0,
   playSong: () => {},
   pause: () => {},
   resume: () => {},
   nextSong: () => {},
   previousSong: () => {},
   stop: () => {},
+  seek: () => {},
 });
 
 export const PlayerProvider: React.FC<PlayerProviderProps> = ({ 
@@ -75,11 +83,15 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
     currentSong: null,
     isPlaying: false,
     isLoading: false,
+    currentTime: 0,
+    duration: 0,
   });
   const [isFullPlayerVisible, setIsFullPlayerVisible] = useState(false);
   const soundRef = useRef<Sound | null>(null);
   const currentSongRef = useRef<Song | null>(null);
   const isPlayingRef = useRef<boolean>(false);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isPlayingSongRef = useRef<boolean>(false); // Flag to prevent duplicate playSong calls
 
   // Update full player visibility when route changes
   useEffect(() => {
@@ -90,6 +102,44 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       });
     }
   }, [onNavigationStateChange]);
+
+  // Progress tracking interval
+  useEffect(() => {
+    const updateProgress = () => {
+      if (soundRef.current && isPlayingRef.current) {
+        soundRef.current.getCurrentTime((currentTime: number) => {
+          if (soundRef.current && isPlayingRef.current) {
+            const duration = soundRef.current.getDuration();
+            setPlayerState(prev => ({
+              ...prev,
+              currentTime: isNaN(currentTime) ? 0 : currentTime,
+              duration: isNaN(duration) || duration < 0 ? (prev.duration > 0 ? prev.duration : 0) : duration,
+            }));
+          }
+        });
+      }
+    };
+
+    // Clear existing interval
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+
+    // Start progress tracking if playing
+    if (playerState.isPlaying && soundRef.current) {
+      progressIntervalRef.current = setInterval(updateProgress, 100); // Update every 100ms
+      // Initial update
+      updateProgress();
+    }
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [playerState.isPlaying, playerState.currentSong]);
 
   // Initialize MusicControl and setup event listeners
   useEffect(() => {
@@ -161,6 +211,11 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   }, []);
 
   const stop = useCallback(() => {
+    // Clear progress interval
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
     if (soundRef.current) {
       soundRef.current.stop(() => {
         soundRef.current?.release();
@@ -171,6 +226,8 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       currentSong: null,
       isPlaying: false,
       isLoading: false,
+      currentTime: 0,
+      duration: 0,
     };
     setPlayerState(newState);
     currentSongRef.current = null;
@@ -181,6 +238,11 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   const pause = useCallback(() => {
     if (soundRef.current) {
       soundRef.current.pause(() => {
+        // Clear progress interval when paused
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
         setPlayerState(prev => {
           if (prev.isPlaying) {
             isPlayingRef.current = false;
@@ -204,25 +266,47 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
     }
 
     // Update state to playing BEFORE calling play() to update UI immediately
-    setPlayerState(prev => {
-      isPlayingRef.current = true;
-      updateMusicControl(prev.currentSong, true);
-      return {
-        currentSong: prev.currentSong,
-        isPlaying: true,
-        isLoading: false,
-      };
-    });
+    isPlayingRef.current = true;
+    updateMusicControl(currentSongRef.current, true);
+    setPlayerState(prev => ({
+      ...prev,
+      isPlaying: true,
+      isLoading: false,
+    }));
+
+    // Restart progress tracking when resumed
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+    progressIntervalRef.current = setInterval(() => {
+      if (soundRef.current && isPlayingRef.current) {
+        soundRef.current.getCurrentTime((currentTime: number) => {
+          if (soundRef.current) {
+            const duration = soundRef.current.getDuration();
+            setPlayerState(prev => ({
+              ...prev,
+              currentTime: isNaN(currentTime) ? 0 : currentTime,
+              duration: isNaN(duration) || duration < 0 ? prev.duration : duration,
+            }));
+          }
+        });
+      }
+    }, 100);
 
     // Resume playback - the callback is called when playback finishes
     soundRef.current.play(success => {
       // When playback completes, set playing to false
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
       setPlayerState(prev => {
         isPlayingRef.current = false;
         updateMusicControl(prev.currentSong, false);
         return {
           ...prev,
           isPlaying: false,
+          currentTime: 0,
         };
       });
     });
@@ -230,6 +314,12 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
   const playSong = useCallback(
     (song: Song, forceRestart: boolean = false) => {
+      // Prevent duplicate calls
+      if (isPlayingSongRef.current) {
+        console.log('playSong already in progress, skipping duplicate call');
+        return;
+      }
+
       // Validate song URL before attempting to play
       if (!song.url || song.url.trim() === '') {
         console.error('Cannot play song: URL is empty', {
@@ -275,23 +365,41 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
         return;
       }
 
+      // Set flag to prevent duplicate calls
+      isPlayingSongRef.current = true;
+
       // Stop and release current sound before playing new one
-      if (soundRef.current) {
-        soundRef.current.stop(() => {
-          soundRef.current?.release();
-          soundRef.current = null;
-        });
+      // Clear progress interval
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
       }
+      
+      // Stop and release current sound, then play new one
+      const stopAndPlay = () => {
+        if (soundRef.current) {
+          soundRef.current.stop(() => {
+            soundRef.current?.release();
+            soundRef.current = null;
+            // After stopping, load and play new song
+            loadAndPlaySong();
+          });
+        } else {
+          // No current sound, directly load and play new song
+          loadAndPlaySong();
+        }
+      };
 
-      setPlayerState(prev => ({
-        ...prev,
-        isLoading: true,
-        isPlaying: false,
-      }));
+      const loadAndPlaySong = () => {
+        setPlayerState(prev => ({
+          ...prev,
+          isLoading: true,
+          isPlaying: false,
+        }));
 
-      const playback = new Sound(song.url, '', error => {
-        if (error) {
-          // Log error so we can see why audio failed to load (e.g. network / format issues)
+        const playback = new Sound(song.url, '', (error) => {
+          if (error) {
+            // Log error so we can see why audio failed to load (e.g. network / format issues)
           console.error('Failed to load sound:', {
             url: song.url,
             title: song.title,
@@ -307,28 +415,59 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
             currentSong: null,
             isPlaying: false,
             isLoading: false,
+            currentTime: 0,
+            duration: 0,
           });
+          isPlayingSongRef.current = false; // Reset flag on error
           return;
         }
 
         soundRef.current = playback;
         currentSongRef.current = song;
+        
+        // Get duration immediately
+        const duration = playback.getDuration();
         setPlayerState({
           currentSong: song,
           isPlaying: false,
           isLoading: false,
+          currentTime: 0,
+          duration: isNaN(duration) || duration < 0 ? 0 : duration,
         });
 
         // Auto-play the song
         // Set playing state immediately after calling play
-        setPlayerState(prev => {
-          isPlayingRef.current = true;
-          updateMusicControl(song, true);
-          return {
-            ...prev,
-            isPlaying: true,
-          };
-        });
+        isPlayingRef.current = true;
+        updateMusicControl(song, true);
+        setPlayerState(prev => ({
+          ...prev,
+          isPlaying: true,
+        }));
+
+        // Start progress tracking
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
+        progressIntervalRef.current = setInterval(() => {
+          if (soundRef.current && isPlayingRef.current) {
+            soundRef.current.getCurrentTime((currentTime: number) => {
+              if (soundRef.current) {
+                const duration = soundRef.current.getDuration();
+                setPlayerState(prev => ({
+                  ...prev,
+                  currentTime: isNaN(currentTime) ? 0 : currentTime,
+                  duration: isNaN(duration) || duration < 0 ? prev.duration : duration,
+                }));
+              }
+            });
+          }
+        }, 100);
+
+        // Reset flag after a short delay to allow playback to start
+        // This prevents duplicate calls during the transition period
+        setTimeout(() => {
+          isPlayingSongRef.current = false;
+        }, 500);
 
         playback.play((success) => {
           if (!success) {
@@ -342,6 +481,11 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
               `Tidak dapat memutar "${song.title}".\n\nFormat audio mungkin tidak didukung atau file rusak.`,
               [{ text: 'OK' }]
             );
+            // Clear progress interval on error
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
             setPlayerState(prev => {
               isPlayingRef.current = false;
               updateMusicControl(prev.currentSong, false);
@@ -350,24 +494,43 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
                 isPlaying: false,
               };
             });
+            isPlayingSongRef.current = false; // Reset flag on error
             return;
           }
           // This callback is called when playback finishes
+          // Clear progress interval when finished
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
           setPlayerState(prev => {
             isPlayingRef.current = false;
             updateMusicControl(prev.currentSong, false);
             return {
               ...prev,
               isPlaying: false,
+              currentTime: 0,
             };
           });
         });
-      });
+        }); // Close Sound constructor callback
+      };
+
+      // Start the stop and play process
+      stopAndPlay();
     },
-    [playerState.currentSong, playerState.isPlaying, playerState.isLoading, pause, resume, updateMusicControl],
+    // pause and resume are stable callbacks with their own dependency arrays, so we don't need them here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [playerState.currentSong, playerState.isPlaying, playerState.isLoading, updateMusicControl],
   );
 
   const nextSong = useCallback(() => {
+    // Prevent duplicate calls
+    if (isPlayingSongRef.current) {
+      console.log('nextSong: playSong already in progress, skipping');
+      return;
+    }
+
     // Use both ref and state to ensure we have the current song
     const currentSong = currentSongRef.current || playerState.currentSong;
     if (!currentSong) {
@@ -390,16 +553,23 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
     const nextIndex = (currentIndex + 1) % SONGS.length;
     const nextSongToPlay = SONGS[nextIndex];
     
-    // If only one song or next song is the same, restart from beginning
-    if (SONGS.length <= 1 || nextSongToPlay.url === currentSong.url) {
-      // Restart current song from beginning - force restart to avoid pause/resume logic
-      playSong(currentSong, true);
-    } else {
+    // Only play if next song is different from current song
+    if (nextSongToPlay.url !== currentSong.url) {
       playSong(nextSongToPlay);
+    } else if (SONGS.length <= 1) {
+      // Only restart if there's only one song
+      playSong(currentSong, true);
     }
+    // If next song is same as current and there are multiple songs, do nothing
   }, [playSong, playerState.currentSong]);
 
   const previousSong = useCallback(() => {
+    // Prevent duplicate calls
+    if (isPlayingSongRef.current) {
+      console.log('previousSong: playSong already in progress, skipping');
+      return;
+    }
+
     // Use both ref and state to ensure we have the current song
     const currentSong = currentSongRef.current || playerState.currentSong;
     if (!currentSong) {
@@ -422,14 +592,32 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
     const prevIndex = currentIndex === 0 ? SONGS.length - 1 : currentIndex - 1;
     const prevSongToPlay = SONGS[prevIndex];
     
-    // If only one song or previous song is the same, restart from beginning
-    if (SONGS.length <= 1 || prevSongToPlay.url === currentSong.url) {
-      // Restart current song from beginning - force restart to avoid pause/resume logic
-      playSong(currentSong, true);
-    } else {
+    // Only play if previous song is different from current song
+    if (prevSongToPlay.url !== currentSong.url) {
       playSong(prevSongToPlay);
+    } else if (SONGS.length <= 1) {
+      // Only restart if there's only one song
+      playSong(currentSong, true);
     }
+    // If previous song is same as current and there are multiple songs, do nothing
   }, [playSong, playerState.currentSong]);
+
+  const seek = useCallback((time: number) => {
+    if (soundRef.current && soundRef.current.isLoaded()) {
+      // Clamp time between 0 and duration
+      const duration = soundRef.current.getDuration();
+      const clampedTime = Math.max(0, Math.min(time, duration));
+      
+      // Update currentTime immediately for UI responsiveness
+      setPlayerState(prev => ({
+        ...prev,
+        currentTime: clampedTime,
+      }));
+      
+      // Seek to the new position
+      soundRef.current.setCurrentTime(clampedTime);
+    }
+  }, []);
 
   // Setup remote control event listeners after all functions are defined
   useEffect(() => {
@@ -450,25 +638,13 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
     };
 
     const handleRemoteNext = () => {
-      const currentSong = currentSongRef.current;
-      if (currentSong) {
-        const currentIndex = SONGS.findIndex(s => s.url === currentSong.url);
-        if (currentIndex !== -1) {
-          const nextIndex = (currentIndex + 1) % SONGS.length;
-          playSong(SONGS[nextIndex]);
-        }
-      }
+      // Use nextSong function instead of directly calling playSong
+      nextSong();
     };
 
     const handleRemotePrevious = () => {
-      const currentSong = currentSongRef.current;
-      if (currentSong) {
-        const currentIndex = SONGS.findIndex(s => s.url === currentSong.url);
-        if (currentIndex !== -1) {
-          const prevIndex = currentIndex === 0 ? SONGS.length - 1 : currentIndex - 1;
-          playSong(SONGS[prevIndex]);
-        }
-      }
+      // Use previousSong function instead of directly calling playSong
+      previousSong();
     };
 
     const handleRemoteStop = () => {
@@ -498,7 +674,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       // @ts-ignore: MusicControl event types
       MusicControl.off('stop', handleRemoteStop);
     };
-  }, [playSong, pause, resume, stop]);
+  }, [pause, resume, stop, nextSong, previousSong]);
 
   return (
     <PlayerContext.Provider
@@ -506,12 +682,15 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
         currentSong: playerState.currentSong,
         isPlaying: playerState.isPlaying,
         isLoading: playerState.isLoading,
+        currentTime: playerState.currentTime,
+        duration: playerState.duration,
         playSong,
         pause,
         resume,
         nextSong,
         previousSong,
         stop,
+        seek,
       }}>
           {children}
           {!isFullPlayerVisible && (

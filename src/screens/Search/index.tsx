@@ -290,24 +290,24 @@ const SearchScreen = () => {
         ) : (
           // Show genres when no search query
           loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
-          ) : (
-            <FlatList
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : (
+          <FlatList
               key="genres-list"
-              data={filteredGenres}
-              keyExtractor={item => item.id || item.name}
-              numColumns={2}
-              contentContainerStyle={[styles.genreGrid, { paddingBottom }]}
-              showsVerticalScrollIndicator={false}
-              renderItem={renderGenreItem}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
+            data={filteredGenres}
+            keyExtractor={item => item.id || item.name}
+            numColumns={2}
+            contentContainerStyle={[styles.genreGrid, { paddingBottom }]}
+            showsVerticalScrollIndicator={false}
+            renderItem={renderGenreItem}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>Tidak ada genres</Text>
-                </View>
-              }
-            />
+              </View>
+            }
+          />
           )
         )}
       </View>

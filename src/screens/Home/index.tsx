@@ -10,6 +10,7 @@ import {
   View,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useNavigation } from '@react-navigation/native';
@@ -26,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SONGS, Song } from '../../storage/songs';
 import { NEWS, NEWS_BACKDROPS } from '../../storage/news';
 import { getApiInstance } from '../../utils/api';
+import { getFeaturedArtists, saveFeaturedArtists, Artist } from '../../storage/artistsStorage';
 
 type RootStackParamList = {
   Home: undefined;
@@ -86,12 +88,6 @@ const CONTINUE_LISTENING = [
   { id: 'cl-3', title: 'Fewture Bounce', artist: 'ECHO', progress: 0.12 },
 ];
 
-const FEATURED_ARTISTS = [
-  { id: 'artist-1', name: 'Luna Wave', color: '#ff7eb3' },
-  { id: 'artist-2', name: 'Sonic Blu', color: '#70e1f5' },
-  { id: 'artist-3', name: 'Golden Vox', color: '#ffd452' },
-  { id: 'artist-4', name: 'Aria Moon', color: '#8e9eab' },
-];
 
 const FALLBACK_SONG_COVER =
   'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -153,6 +149,13 @@ const LIVE_SESSIONS = [
   { id: 'live-2', title: 'Studio B Unplugged', listeners: '8.4K' },
 ];
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const HORIZONTAL_PADDING = normalize(24) * 2; // left + right padding
+const GAP_BETWEEN_COLUMNS = normalize(12);
+// Card width - make it wider to accommodate row layout (image + text side by side)
+const TOP_100_CARD_WIDTH = normalize(280); // Fixed width that can exceed screen
+const TOP_100_COLUMN_WIDTH = TOP_100_CARD_WIDTH; // Each column has the width of the card
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -172,6 +175,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
   const [loadingTopStreamed, setLoadingTopStreamed] = useState(true);
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
+  const [featuredArtists, setFeaturedArtists] = useState<Artist[]>([]);
+  const [loadingFeaturedArtists, setLoadingFeaturedArtists] = useState(true);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -524,6 +529,89 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     }
   }, [showToast]);
 
+  const fetchFeaturedArtists = useCallback(async () => {
+    let cachedArtists: Artist[] | null = null;
+    try {
+      setLoadingFeaturedArtists(true);
+      
+      // Load dari cache terlebih dahulu untuk menampilkan data lama
+      cachedArtists = await getFeaturedArtists();
+      if (cachedArtists && cachedArtists.length > 0) {
+        setFeaturedArtists(cachedArtists);
+      }
+      
+      const api = await getApiInstance();
+      const response = await api.get('/api/artists/random', {
+        params: {
+          limit: 10,
+        },
+      });
+      
+      // Handle struktur response: { success, data: [...], count }
+      const data = response.data?.data || [];
+      
+      // Map data dari API ke struktur Artist
+      const mappedArtists: Artist[] = Array.isArray(data)
+        ? data.map((artist: any) => ({
+            id: artist.id,
+            name: artist.name || 'Unknown Artist',
+            profile_image: artist.profile_image || null,
+          }))
+        : [];
+      
+      // Update state dan cache jika berhasil
+      setFeaturedArtists(mappedArtists);
+      await saveFeaturedArtists(mappedArtists);
+    } catch (error: any) {
+      console.error('Error fetching featured artists:', error);
+      
+      // Jika error karena network dan ada cache, gunakan cache
+      const isNetworkError = error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response;
+      if (isNetworkError) {
+        // Jika sudah ada cachedArtists yang di-load, tidak perlu set lagi
+        if (cachedArtists && cachedArtists.length > 0) {
+          return;
+        }
+        // Coba load dari cache sebagai fallback
+        const fallbackCache = await getFeaturedArtists();
+        if (fallbackCache && fallbackCache.length > 0) {
+          setFeaturedArtists(fallbackCache);
+          return;
+        }
+      }
+      
+      // Handle network errors dengan pesan yang lebih informatif
+      let errorMessage = 'Gagal memuat featured artists';
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        errorMessage = 'Koneksi timeout atau tidak stabil. Pastikan koneksi internet aktif.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Hanya tampilkan toast jika bukan network error (untuk menghindari spam)
+      if (error.code !== 'ECONNABORTED' && error.message !== 'Network Error') {
+        showToast({
+          message: errorMessage,
+          type: 'error',
+        });
+      }
+      
+      // Coba load dari cache sebagai fallback jika belum di-load
+      if (!cachedArtists || cachedArtists.length === 0) {
+        const fallbackCache = await getFeaturedArtists();
+        if (fallbackCache && fallbackCache.length > 0) {
+          setFeaturedArtists(fallbackCache);
+        } else {
+          setFeaturedArtists([]);
+        }
+      }
+    } finally {
+      setLoadingFeaturedArtists(false);
+    }
+  }, [showToast]);
+
   useEffect(() => {
     fetchLatestDrops();
     fetchMusicVideos();
@@ -531,15 +619,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     fetchNews();
     fetchTopStreamed();
     fetchPlaylists();
-  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists]);
+    fetchFeaturedArtists();
+  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    Promise.all([fetchLatestDrops(), fetchMusicVideos(), fetchPodcasts(), fetchNews(), fetchTopStreamed(), fetchPlaylists()]).finally(() => {
+    Promise.all([fetchLatestDrops(), fetchMusicVideos(), fetchPodcasts(), fetchNews(), fetchTopStreamed(), fetchPlaylists(), fetchFeaturedArtists()]).finally(() => {
       setRefreshing(false);
       showToast({ message: 'Home refreshed', type: 'info' });
     });
-  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, showToast]);
+  }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists, showToast]);
 
   const selectedGenres = profile.selectedGenres ?? [];
   const paddingTop = Math.max(insets.top, normalize(24));
@@ -867,64 +956,85 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Latest drops</Text>
+          <Text style={styles.sectionTitle}>Top 100</Text>
           {loadingLatestDrops && latestDrops.length === 0 ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Memuat latest drops...</Text>
+              <Text style={styles.loadingText}>Memuat top 100...</Text>
             </View>
           ) : filteredSongs.length > 0 ? (
-            <View style={styles.songList}>
-              {filteredSongs.map((song, index) => {
-                const isActive = currentSong?.url === song.url && isPlaying;
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.top100ScrollContent}
+            >
+              {/* Group items into columns of 4 (vertical stacking) */}
+              {Array.from({ length: Math.ceil(filteredSongs.length / 4) }).map((_, columnIndex) => {
+                const columnItems = filteredSongs.slice(columnIndex * 4, columnIndex * 4 + 4);
                 return (
-                  <TouchableOpacity
-                    key={song.url || `song-${index}`}
-                    activeOpacity={0.85}
-                    style={[styles.songRow, isActive && styles.songRowActive]}
-                    onPress={() => {
-                      if (!song.url || song.url.trim() === '') {
-                        showToast({
-                          message: `Audio tidak tersedia untuk ${song.title}`,
-                          type: 'error',
-                        });
-                        return;
-                      }
-                      playSong(song);
-                      showToast({
-                        message: `Playing ${song.title}`,
-                        type: 'info',
-                      });
-                    }}
-                  >
-                    <Image
-                      source={{ uri: song.cover }}
-                      style={styles.songCover}
-                    />
-                    <View style={styles.songMeta}>
-                      <Text style={styles.songTitle}>{song.title}</Text>
-                      <Text style={styles.songArtist}>{song.artist}</Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.songDuration,
-                        isActive && styles.songDurationActive,
-                      ]}
-                    >
-                      {isActive ? 'Playing' : song.time}
-                    </Text>
-                  </TouchableOpacity>
+                  <View key={columnIndex} style={styles.top100Column}>
+                    {columnItems.map((song, itemIndex) => {
+                      const index = columnIndex * 4 + itemIndex;
+                      const isActive = currentSong?.url === song.url && isPlaying;
+                      return (
+                        <TouchableOpacity
+                          key={song.url || `song-${index}`}
+                          activeOpacity={0.85}
+                          style={[
+                            styles.top100Card,
+                            isActive && styles.top100CardActive,
+                          ]}
+                          onPress={() => {
+                            if (!song.url || song.url.trim() === '') {
+                              showToast({
+                                message: `Audio tidak tersedia untuk ${song.title}`,
+                                type: 'error',
+                              });
+                              return;
+                            }
+                            playSong(song);
+                            showToast({
+                              message: `Playing ${song.title}`,
+                              type: 'info',
+                            });
+                          }}
+                        >
+                          <Image
+                            source={{ uri: song.cover }}
+                            style={styles.top100Cover}
+                            resizeMode="cover"
+                          />
+                          <View style={styles.top100Meta}>
+                            <Text 
+                              style={styles.top100Title} 
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {song.title}
+                            </Text>
+                            <Text 
+                              style={styles.top100Artist} 
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {song.artist}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 );
               })}
-            </View>
+            </ScrollView>
           ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Tidak ada latest drops</Text>
+              <Text style={styles.emptyText}>Tidak ada top 100</Text>
             </View>
           )}
         </View>
 
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Fresh mixes</Text>
           <ScrollView
             horizontal
@@ -942,7 +1052,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </View> */}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top playlists</Text>
@@ -995,7 +1105,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
           )}
         </View>
 
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Continue listening</Text>
           <View style={styles.verticalStack}>
             {CONTINUE_LISTENING.map(mix => (
@@ -1015,26 +1125,44 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
               </View>
             ))}
           </View>
-        </View>
+        </View> */}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Featured artists</Text>
-          <View style={styles.artistRow}>
-            {FEATURED_ARTISTS.map(artist => (
-              <View key={artist.id} style={styles.artistItem}>
-                <View
-                  style={[
-                    styles.artistAvatar,
-                    { backgroundColor: artist.color },
-                  ]}
-                />
-                <Text style={styles.artistName}>{artist.name}</Text>
-              </View>
-            ))}
-          </View>
+          {loadingFeaturedArtists && featuredArtists.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Memuat featured artists...</Text>
+            </View>
+          ) : featuredArtists.length > 0 ? (
+            <View style={styles.artistRow}>
+              {featuredArtists.map(artist => (
+                <View key={artist.id} style={styles.artistItem}>
+                  {artist.profile_image ? (
+                    <Image
+                      source={{ uri: artist.profile_image }}
+                      style={styles.artistAvatar}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.artistAvatarPlaceholder}>
+                      <Text style={styles.artistAvatarText}>
+                        {artist.name?.charAt(0)?.toUpperCase() || 'A'}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.artistName}>{artist.name}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Tidak ada featured artists</Text>
+            </View>
+          )}
         </View>
 
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Live sessions</Text>
           <ScrollView
             horizontal
@@ -1051,7 +1179,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
               </View>
             ))}
           </ScrollView>
-        </View>
+        </View> */}
 
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
@@ -1298,6 +1426,51 @@ const styles = StyleSheet.create({
   horizontalList: {
     gap: normalize(16),
   },
+  top100ScrollContent: {
+    gap: normalize(12),
+    paddingRight: normalize(24),
+  },
+  top100Column: {
+    flexDirection: 'column',
+    gap: normalize(12),
+    width: TOP_100_COLUMN_WIDTH,
+  },
+  top100Card: {
+    borderRadius: normalize(12),
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row',
+    gap: normalize(12),
+    alignItems: 'center',
+    padding: normalize(8),
+    width: TOP_100_CARD_WIDTH,
+  },
+  top100CardActive: {
+    borderColor: COLORS.primary,
+    borderWidth: 2,
+  },
+  top100Cover: {
+    width: normalize(52),
+    height: normalize(52),
+    borderRadius: normalize(8),
+    backgroundColor: '#222',
+  },
+  top100Meta: {
+    flex: 1,
+    gap: normalize(4),
+    minWidth: 0, // Allows flex child to shrink below content size
+  },
+  top100Title: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: normalize(16),
+  },
+  top100Artist: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: normalize(14),
+  },
   mixCard: {
     width: normalize(180),
     height: normalize(110),
@@ -1323,9 +1496,7 @@ const styles = StyleSheet.create({
     flexBasis: '48%',
     borderRadius: normalize(18),
     padding: normalize(16),
-    backgroundColor: '#101010',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#181818',
     gap: normalize(12),
   },
   playlistCoverImage: {
@@ -1401,6 +1572,20 @@ const styles = StyleSheet.create({
     width: normalize(64),
     height: normalize(64),
     borderRadius: normalize(32),
+    backgroundColor: '#222',
+  },
+  artistAvatarPlaceholder: {
+    width: normalize(64),
+    height: normalize(64),
+    borderRadius: normalize(32),
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artistAvatarText: {
+    color: '#fff',
+    fontSize: normalize(24),
+    fontWeight: '700',
   },
   artistName: {
     color: '#fff',

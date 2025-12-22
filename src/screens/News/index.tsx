@@ -270,13 +270,13 @@ const NewsScreen: React.FC = () => {
             color="rgba(255,255,255,0.6)"
             style={styles.searchIcon}
           />
-          <TextInput
-            style={styles.searchInput}
+        <TextInput
+          style={styles.searchInput}
             placeholder="Cari news..."
-            placeholderTextColor="rgba(255,255,255,0.6)"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+          placeholderTextColor="rgba(255,255,255,0.6)"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
           {searchQuery.length > 0 && (
             <TouchableOpacity
               onPress={() => setSearchQuery('')}
@@ -415,44 +415,44 @@ const NewsScreen: React.FC = () => {
 
         {restNews.length > 0 ? (
           <>
-            <View style={styles.newsList}>
+        <View style={styles.newsList}>
               {restNews.map((item, index) => {
                 const coverUrl = item.image_url || NEWS_BACKDROPS[(index + headlineNews.length) % NEWS_BACKDROPS.length];
                 const formattedDate = formatDate(item.published_at || item.created_at);
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    activeOpacity={0.9}
-                    onPress={() => handleOpenDetail(item)}
-                  >
-                    <ImageBackground
+            return (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.9}
+                onPress={() => handleOpenDetail(item)}
+              >
+                <ImageBackground
                       source={{ uri: coverUrl }}
-                      style={styles.newsCard}
-                      imageStyle={styles.cardBackgroundImage}
-                    >
-                      <View style={styles.cardOverlay} />
-                      <View style={styles.cardContent}>
-                        <View style={styles.newsMetaRow}>
+                  style={styles.newsCard}
+                  imageStyle={styles.cardBackgroundImage}
+                >
+                  <View style={styles.cardOverlay} />
+                  <View style={styles.cardContent}>
+                    <View style={styles.newsMetaRow}>
                           <Text style={styles.newsDate}>{formattedDate}</Text>
                           {item.views > 0 && (
                             <Text style={styles.newsViews}>{item.views} views</Text>
                           )}
-                        </View>
-                        <Text style={styles.newsTitle}>{item.title}</Text>
-                        <Text style={styles.newsSummary} numberOfLines={3}>
-                          {item.summary}
-                        </Text>
+                    </View>
+                    <Text style={styles.newsTitle}>{item.title}</Text>
+                    <Text style={styles.newsSummary} numberOfLines={3}>
+                      {item.summary}
+                    </Text>
                         {item.category && (
                           <View style={styles.categoryBadge}>
                             <Text style={styles.categoryText}>{item.category}</Text>
                           </View>
                         )}
-                      </View>
-                    </ImageBackground>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                  </View>
+                </ImageBackground>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
             {loadingMore && (
               <View style={styles.loadingMoreContainer}>
                 <ActivityIndicator size="small" color={COLORS.primary} />

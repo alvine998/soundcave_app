@@ -15,6 +15,8 @@ import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+// @ts-ignore: @react-native-community/slider lacks bundled types.
+import Slider from '@react-native-community/slider';
 
 import { usePlayer } from '../../components/Player';
 import { COLORS } from '../../config/color';
@@ -37,10 +39,9 @@ type FullPlayerScreenNavigationProp = NativeStackNavigationProp<
 const FullPlayerScreen: React.FC = () => {
   const navigation = useNavigation<FullPlayerScreenNavigationProp>();
   const insets = useSafeAreaInsets();
-  const { currentSong, isPlaying, isLoading, pause, resume, nextSong, previousSong } = usePlayer();
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const { currentSong, isPlaying, isLoading, currentTime, duration, pause, resume, nextSong, previousSong, seek } = usePlayer();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [slidingTime, setSlidingTime] = useState<number | null>(null);
 
   if (!currentSong) {
     return null;
@@ -58,7 +59,26 @@ const FullPlayerScreen: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  // Use slidingTime if user is dragging, otherwise use currentTime
+  const displayTime = slidingTime !== null ? slidingTime : currentTime;
+  const progress = duration > 0 && !isNaN(duration) ? Math.max(0, Math.min(1, displayTime / duration)) : 0;
+
+  const handleValueChange = (value: number) => {
+    if (duration > 0 && !isNaN(duration)) {
+      const newTime = value * duration;
+      setSlidingTime(newTime);
+    }
+  };
+
+  const handleSlidingComplete = (value: number) => {
+    if (duration > 0 && !isNaN(duration)) {
+      const newTime = value * duration;
+      setSlidingTime(null);
+      seek(newTime);
+    } else {
+      setSlidingTime(null);
+    }
+  };
   const contentPaddingBottom = Math.max(insets.bottom, normalize(16)) + normalize(40);
 
   return (
@@ -112,11 +132,19 @@ const FullPlayerScreen: React.FC = () => {
 
             {/* Progress Bar */}
             <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-              </View>
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={1}
+                value={progress}
+                onValueChange={handleValueChange}
+                onSlidingComplete={handleSlidingComplete}
+                minimumTrackTintColor="#fff"
+                maximumTrackTintColor="rgba(255,255,255,0.3)"
+                thumbTintColor="#fff"
+              />
               <View style={styles.timeContainer}>
-                <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                <Text style={styles.timeText}>{formatTime(displayTime)}</Text>
                 <Text style={styles.timeText}>{formatTime(duration)}</Text>
               </View>
             </View>
@@ -253,17 +281,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: normalize(20),
     marginBottom: normalize(30),
   },
-  progressBar: {
+  slider: {
     width: '100%',
-    height: normalize(4),
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: normalize(2),
+    height: normalize(40),
     marginBottom: normalize(10),
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: normalize(2),
   },
   timeContainer: {
     flexDirection: 'row',
