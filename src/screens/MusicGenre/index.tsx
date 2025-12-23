@@ -60,9 +60,9 @@ const MusicGenreScreen: React.FC = () => {
     return {
       artist: apiData.artist || apiData.artist_name || 'Unknown Artist',
       title: apiData.title || apiData.name || 'Unknown Title',
-      url: apiData.url || apiData.audio_url || apiData.audio || '',
+      url: apiData.url || apiData.audio_file_url || apiData.audio || '',
       time: apiData.time || apiData.duration || apiData.length || '00:00',
-      cover: apiData.cover || apiData.image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
+      cover: apiData.cover || apiData.cover_image_url || apiData.image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
       lyrics: apiData.lyrics || '',
     };
   }, []);
@@ -159,7 +159,7 @@ const MusicGenreScreen: React.FC = () => {
         activeOpacity={0.85}
         style={[styles.songRow, isActive && styles.songRowActive]}
         onPress={() => {
-          playSong(item);
+          playSong(item, songs);
           showToast({
             message: `Memutar ${item.title}`,
             type: 'info',

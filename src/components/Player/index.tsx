@@ -44,7 +44,7 @@ type PlayerContextValue = {
   isLoading: boolean;
   currentTime: number;
   duration: number;
-  playSong: (song: Song) => void;
+  playSong: (song: Song, playlist?: Song[]) => void;
   pause: () => void;
   resume: () => void;
   nextSong: () => void;
@@ -92,6 +92,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   const isPlayingRef = useRef<boolean>(false);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPlayingSongRef = useRef<boolean>(false); // Flag to prevent duplicate playSong calls
+  const playlistQueueRef = useRef<Song[]>([]); // Queue untuk menyimpan playlist yang sedang diputar
 
   // Update full player visibility when route changes
   useEffect(() => {
@@ -232,6 +233,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
     setPlayerState(newState);
     currentSongRef.current = null;
     isPlayingRef.current = false;
+    playlistQueueRef.current = []; // Clear playlist queue on stop
     updateMusicControl(null, false);
   }, [updateMusicControl]);
 
@@ -313,7 +315,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   }, [updateMusicControl]);
 
   const playSong = useCallback(
-    (song: Song, forceRestart: boolean = false) => {
+    (song: Song, playlist?: Song[]) => {
       // Prevent duplicate calls
       if (isPlayingSongRef.current) {
         console.log('playSong already in progress, skipping duplicate call');
@@ -342,9 +344,8 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       // Use ref to get current song to avoid stale closure issues
       const currentSong = currentSongRef.current;
       
-      // If same song is already playing and not forcing restart, pause it
+      // If same song is already playing, pause it
       if (
-        !forceRestart &&
         soundRef.current &&
         currentSong?.url === song.url &&
         isPlayingRef.current
@@ -353,9 +354,8 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
         return;
       }
 
-      // If same song is paused and not forcing restart, resume it
+      // If same song is paused, resume it
       if (
-        !forceRestart &&
         soundRef.current &&
         currentSong?.url === song.url &&
         !isPlayingRef.current &&
@@ -367,6 +367,11 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
       // Set flag to prevent duplicate calls
       isPlayingSongRef.current = true;
+
+      // Update playlist queue if provided
+      if (playlist && Array.isArray(playlist) && playlist.length > 0) {
+        playlistQueueRef.current = [...playlist];
+      }
 
       // Stop and release current sound before playing new one
       // Clear progress interval
@@ -533,32 +538,36 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     // Use both ref and state to ensure we have the current song
     const currentSong = currentSongRef.current || playerState.currentSong;
+    
+    // Use playlist queue if available, otherwise fallback to SONGS
+    const playlist = playlistQueueRef.current.length > 0 ? playlistQueueRef.current : SONGS;
+    
     if (!currentSong) {
       // If no song is playing, play the first song
-      if (SONGS.length > 0) {
-        playSong(SONGS[0]);
+      if (playlist.length > 0) {
+        playSong(playlist[0], [...playlist]);
       }
       return;
     }
 
-    const currentIndex = SONGS.findIndex(s => s.url === currentSong.url);
+    const currentIndex = playlist.findIndex(s => s.url === currentSong.url);
     if (currentIndex === -1) {
       // Current song not found in list, play first song
-      if (SONGS.length > 0) {
-        playSong(SONGS[0]);
+      if (playlist.length > 0) {
+        playSong(playlist[0], [...playlist]);
       }
       return;
     }
 
-    const nextIndex = (currentIndex + 1) % SONGS.length;
-    const nextSongToPlay = SONGS[nextIndex];
+    const nextIndex = (currentIndex + 1) % playlist.length;
+    const nextSongToPlay = playlist[nextIndex];
     
     // Only play if next song is different from current song
     if (nextSongToPlay.url !== currentSong.url) {
-      playSong(nextSongToPlay);
-    } else if (SONGS.length <= 1) {
+      playSong(nextSongToPlay, [...playlist]);
+    } else if (playlist.length <= 1) {
       // Only restart if there's only one song
-      playSong(currentSong, true);
+      playSong(currentSong, [...playlist]);
     }
     // If next song is same as current and there are multiple songs, do nothing
   }, [playSong, playerState.currentSong]);
@@ -572,32 +581,36 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     // Use both ref and state to ensure we have the current song
     const currentSong = currentSongRef.current || playerState.currentSong;
+    
+    // Use playlist queue if available, otherwise fallback to SONGS
+    const playlist = playlistQueueRef.current.length > 0 ? playlistQueueRef.current : SONGS;
+    
     if (!currentSong) {
       // If no song is playing, play the last song
-      if (SONGS.length > 0) {
-        playSong(SONGS[SONGS.length - 1]);
+      if (playlist.length > 0) {
+        playSong(playlist[playlist.length - 1], [...playlist]);
       }
       return;
     }
 
-    const currentIndex = SONGS.findIndex(s => s.url === currentSong.url);
+    const currentIndex = playlist.findIndex(s => s.url === currentSong.url);
     if (currentIndex === -1) {
       // Current song not found in list, play last song
-      if (SONGS.length > 0) {
-        playSong(SONGS[SONGS.length - 1]);
+      if (playlist.length > 0) {
+        playSong(playlist[playlist.length - 1], [...playlist]);
       }
       return;
     }
 
-    const prevIndex = currentIndex === 0 ? SONGS.length - 1 : currentIndex - 1;
-    const prevSongToPlay = SONGS[prevIndex];
+    const prevIndex = currentIndex === 0 ? playlist.length - 1 : currentIndex - 1;
+    const prevSongToPlay = playlist[prevIndex];
     
     // Only play if previous song is different from current song
     if (prevSongToPlay.url !== currentSong.url) {
-      playSong(prevSongToPlay);
-    } else if (SONGS.length <= 1) {
+      playSong(prevSongToPlay, [...playlist]);
+    } else if (playlist.length <= 1) {
       // Only restart if there's only one song
-      playSong(currentSong, true);
+      playSong(currentSong, [...playlist]);
     }
     // If previous song is same as current and there are multiple songs, do nothing
   }, [playSong, playerState.currentSong]);

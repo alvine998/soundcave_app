@@ -26,6 +26,8 @@ import { useToast } from '../../components/Toast';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+// Tab bar height: 60px base height + 10px marginTop from tabBarStyle
+const TAB_BAR_BASE_HEIGHT = normalize(60) + normalize(10);
 
 type CavelistData = {
   id: number;
@@ -107,6 +109,18 @@ const CavelistScreen: React.FC = () => {
       }
       
       setVideos(data);
+      
+      // Reset viewer tracking untuk refresh
+      if (isRefresh) {
+        viewerUpdatedRef.current = new Set();
+        // Clear all viewer timers
+        Object.values(viewerTimersRef.current).forEach(timer => {
+          if (timer) {
+            clearTimeout(timer);
+          }
+        });
+        viewerTimersRef.current = {};
+      }
       
       // Reset ke index 0 setelah refresh
       setCurrentIndex(0);
@@ -231,6 +245,7 @@ const CavelistScreen: React.FC = () => {
           }
         });
         viewerTimersRef.current = {};
+        viewerUpdatedRef.current = new Set(); // Reset viewer tracking
         setIsPlaying(false);
         setCurrentIndex(0);
         setPullDownDistance(0);
@@ -239,20 +254,40 @@ const CavelistScreen: React.FC = () => {
     }, [fetchVideos])
   );
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+  const currentIndexRef = useRef(currentIndex);
+  const videosRef = useRef(videos);
+  const isPlayingRef = useRef(isPlaying);
+
+  // Update refs ketika state berubah
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  useEffect(() => {
+    videosRef.current = videos;
+  }, [videos]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  const onViewableItemsChanged = useCallback(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
       const newIndex = viewableItems[0].index;
-      if (newIndex !== null && newIndex !== currentIndex) {
+      const currentIdx = currentIndexRef.current;
+      const currentVideos = videosRef.current;
+      
+      if (newIndex !== null && newIndex !== undefined && newIndex !== currentIdx) {
         // Clear timer untuk previous video
-        const previousVideo = videos[currentIndex];
+        const previousVideo = currentVideos[currentIdx];
         if (previousVideo && viewerTimersRef.current[previousVideo.id]) {
           clearTimeout(viewerTimersRef.current[previousVideo.id]);
           delete viewerTimersRef.current[previousVideo.id];
         }
 
         // Pause previous video
-        if (videoRefs.current[currentIndex]) {
-          videoRefs.current[currentIndex]?.pause();
+        if (videoRefs.current[currentIdx]) {
+          videoRefs.current[currentIdx]?.pause();
         }
         
         // Play new video
@@ -260,7 +295,7 @@ const CavelistScreen: React.FC = () => {
         setIsPlaying(true);
         
         // Track viewer untuk video baru
-        const newVideo = videos[newIndex];
+        const newVideo = currentVideos[newIndex];
         if (newVideo) {
           trackViewer(newVideo.id);
         }
@@ -273,7 +308,7 @@ const CavelistScreen: React.FC = () => {
         }, 100);
       }
     }
-  }).current;
+  }, [trackViewer]);
 
   const handleRefresh = useCallback(() => {
     if (!isRefreshing && currentIndex === 0) {
@@ -370,13 +405,14 @@ const CavelistScreen: React.FC = () => {
     itemVisiblePercentThreshold: 50,
   };
 
-  const handleVideoLoad = (index: number) => {
-    if (index === currentIndex && isPlaying) {
+  const handleVideoLoad = useCallback((index: number) => {
+    // Use ref to get current values to avoid stale closure
+    if (index === currentIndexRef.current && isPlayingRef.current) {
       setTimeout(() => {
         videoRefs.current[index]?.resume();
       }, 100);
     }
-  };
+  }, []);
 
   const handleVideoError = (index: number, error: any) => {
     console.error(`Cavelist video error at index ${index}:`, error);
@@ -386,10 +422,12 @@ const CavelistScreen: React.FC = () => {
     });
   };
 
-  const togglePlayPause = () => {
-    const video = videoRefs.current[currentIndex];
+  const togglePlayPause = useCallback(() => {
+    const currentIdx = currentIndexRef.current;
+    const playing = isPlayingRef.current;
+    const video = videoRefs.current[currentIdx];
     if (video) {
-      if (isPlaying) {
+      if (playing) {
         video.pause();
         setIsPlaying(false);
       } else {
@@ -399,7 +437,7 @@ const CavelistScreen: React.FC = () => {
     }
     setShowControls(true);
     setTimeout(() => setShowControls(false), 3000);
-  };
+  }, []);
 
   const handleLike = useCallback(async (videoId: number) => {
     const isLiked = likedVideos.has(videoId);
@@ -461,7 +499,7 @@ const CavelistScreen: React.FC = () => {
     const hasVideoUrl = item.video_url && item.video_url.trim() !== '';
 
     return (
-      <View style={styles.videoContainer}>
+      <View style={[styles.videoContainer, { height: VIDEO_HEIGHT }]}>
         {hasVideoUrl ? (
           <Video
             ref={(ref) => {
@@ -576,6 +614,12 @@ const CavelistScreen: React.FC = () => {
     );
   }
 
+  // Calculate video height: full screen minus top inset (handled by paddingTop) and bottom tabs
+  // Container already has paddingTop: insets.top, so FlatList content area is SCREEN_HEIGHT - insets.top
+  // We need to subtract bottom tabs height: TAB_BAR_BASE_HEIGHT + insets.bottom (for safe area)
+  const tabBarTotalHeight = TAB_BAR_BASE_HEIGHT + insets.bottom;
+  const VIDEO_HEIGHT = SCREEN_HEIGHT - insets.top - tabBarTotalHeight;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" />
@@ -586,7 +630,7 @@ const CavelistScreen: React.FC = () => {
         keyExtractor={(item) => String(item.id)}
         pagingEnabled
         showsVerticalScrollIndicator={false}
-        snapToInterval={SCREEN_HEIGHT}
+        snapToInterval={VIDEO_HEIGHT}
         snapToAlignment="start"
         decelerationRate="fast"
         bounces={currentIndex === 0}
@@ -601,8 +645,8 @@ const CavelistScreen: React.FC = () => {
         onMomentumScrollEnd={handleMomentumScrollEnd}
         scrollEventThrottle={16}
         getItemLayout={(_, index) => ({
-          length: SCREEN_HEIGHT,
-          offset: SCREEN_HEIGHT * index,
+          length: VIDEO_HEIGHT,
+          offset: VIDEO_HEIGHT * index,
           index,
         })}
         initialScrollIndex={0}
@@ -651,7 +695,6 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
     backgroundColor: '#000',
   },
   video: {

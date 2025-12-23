@@ -992,7 +992,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                               });
                               return;
                             }
-                            playSong(song);
+                            playSong(song, [...filteredSongs]);
                             showToast({
                               message: `Playing ${song.title}`,
                               type: 'info',
@@ -1135,7 +1135,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
               <Text style={styles.loadingText}>Memuat featured artists...</Text>
             </View>
           ) : featuredArtists.length > 0 ? (
-            <View style={styles.artistRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.artistRowScrollContent}
+            >
               {featuredArtists.map(artist => (
                 <View key={artist.id} style={styles.artistItem}>
                   {artist.profile_image ? (
@@ -1154,7 +1158,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                   <Text style={styles.artistName}>{artist.name}</Text>
                 </View>
               ))}
-            </View>
+            </ScrollView>
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Tidak ada featured artists</Text>
@@ -1560,13 +1564,15 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#fff',
   },
-  artistRow: {
+  artistRowScrollContent: {
     flexDirection: 'row',
     gap: normalize(16),
+    paddingRight: normalize(24),
   },
   artistItem: {
     alignItems: 'center',
     gap: normalize(8),
+    width: normalize(80),
   },
   artistAvatar: {
     width: normalize(64),
