@@ -12,6 +12,7 @@ import {
     ActivityIndicator,
     Dimensions,
     ListRenderItem,
+    InteractionManager,
 } from 'react-native';
 import normalize from 'react-native-normalize';
 import { useNavigation } from '@react-navigation/native';
@@ -207,6 +208,7 @@ const PodcastCard = React.memo<{
                     source={{ uri: podcast.cover }}
                     style={styles.podcastCover}
                     resizeMode="cover"
+                    fadeDuration={0}
                 />
                 <Text style={styles.podcastTitle} numberOfLines={2}>
                     {podcast.title}
@@ -233,6 +235,7 @@ const MusicVideoCard = React.memo<{
                     source={{ uri: video.cover }}
                     style={styles.musicVideoCover}
                     resizeMode="cover"
+                    fadeDuration={0}
                 />
                 <Text style={styles.musicVideoTitle} numberOfLines={1}>
                     {video.title}
@@ -262,6 +265,7 @@ const Top100Card = React.memo<{
                     source={{ uri: song.cover }}
                     style={styles.top100Cover}
                     resizeMode="cover"
+                    fadeDuration={0}
                 />
                 <View style={styles.top100Meta}>
                     <Text style={styles.top100Title} numberOfLines={1} ellipsizeMode="tail">
@@ -329,6 +333,7 @@ const ArtistCard = React.memo<{
                         source={{ uri: artist.profile_image }}
                         style={styles.artistAvatar}
                         resizeMode="cover"
+                        fadeDuration={0}
                     />
                 ) : (
                     <View style={styles.artistAvatarPlaceholder}>
@@ -644,13 +649,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     }, []);
 
     useEffect(() => {
-        fetchLatestDrops();
-        fetchMusicVideos();
-        fetchPodcasts();
-        fetchNews();
-        fetchTopStreamed();
-        fetchPlaylists();
-        fetchFeaturedArtists();
+        // Defer data fetching until after UI is mounted for smoother initial load
+        InteractionManager.runAfterInteractions(() => {
+            fetchLatestDrops();
+            fetchMusicVideos();
+            fetchPodcasts();
+            fetchNews();
+            fetchTopStreamed();
+            fetchPlaylists();
+            fetchFeaturedArtists();
+        });
     }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists]);
 
     const onRefresh = useCallback(() => {
@@ -1199,9 +1207,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                     />
                 }
                 removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={5}
-                initialNumToRender={3}
+                maxToRenderPerBatch={2}
+                windowSize={3}
+                initialNumToRender={2}
+                updateCellsBatchingPeriod={100}
                 getItemLayout={(data, index) => ({
                     length: normalize(300), // Approximate height
                     offset: normalize(300) * index,

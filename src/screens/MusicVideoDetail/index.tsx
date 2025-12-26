@@ -303,30 +303,35 @@ const MusicVideoDetailScreen: React.FC = () => {
                   <Text style={styles.loadingText}>Memuat video...</Text>
                 </View>
               )}
-              {!isFullscreen && showControls && (
-                <View style={styles.videoControlsOverlay}>
-                  <TouchableOpacity
-                    style={styles.playPauseButton}
-                    onPress={handlePlayPause}
-                    activeOpacity={0.8}>
-                    <FontAwesome6
-                      name={isPlaying ? "pause" : "play"}
-                      size={40}
-                      color="#fff"
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.fullscreenIconButton}
-                    onPress={handleFullscreen}
-                    activeOpacity={0.8}>
-                    <FontAwesome6
-                      name="maximize"
-                      size={24}
-                      color="#fff"
-                    />
-                  </TouchableOpacity>
-                </View>
-              )}
+              <TouchableOpacity
+                style={styles.videoControlsOverlay}
+                activeOpacity={1}
+                onPress={() => setShowControls(!showControls)}>
+                {!isFullscreen && showControls && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.playPauseButton}
+                      onPress={handlePlayPause}
+                      activeOpacity={0.8}>
+                      <FontAwesome6
+                        name={isPlaying ? "pause" : "play"}
+                        size={40}
+                        color="#fff"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.fullscreenIconButton}
+                      onPress={handleFullscreen}
+                      activeOpacity={0.8}>
+                      <FontAwesome6
+                        name="maximize"
+                        size={24}
+                        color="#fff"
+                      />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </TouchableOpacity>
             </>
           ) : (
             <>

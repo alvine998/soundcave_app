@@ -213,14 +213,7 @@ const PodcastDetailScreen: React.FC = () => {
 
   // Handle tap pada video area untuk toggle controls
   const handleVideoTap = () => {
-    if (isPlaying) {
-      setShowControls(!showControls);
-      if (!showControls) {
-        setTimeout(() => {
-          setShowControls(false);
-        }, 3000);
-      }
-    }
+    setShowControls(!showControls);
   };
 
   const handleVideoLoad = () => {
