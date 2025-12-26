@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 // @ts-ignore: react-native-video lacks bundled types.
-import Video from 'react-native-video';
+import Video, { VideoRef } from 'react-native-video';
 
 import { COLORS } from '../../config/color';
 import { getApiInstance } from '../../utils/api';
@@ -80,8 +80,9 @@ const PodcastDetailScreen: React.FC = () => {
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const videoRef = useRef<Video>(null);
-  const fullscreenVideoRef = useRef<Video>(null);
+  const [currentTime, setCurrentTime] = useState(0); // Track playback position
+  const videoRef = useRef<VideoRef>(null);
+  const fullscreenVideoRef = useRef<VideoRef>(null);
 
   // Format duration dari "42:15" ke "42 min"
   const formatDuration = (duration: string): string => {
@@ -114,7 +115,7 @@ const PodcastDetailScreen: React.FC = () => {
       setLoading(true);
       const api = await getApiInstance();
       const response = await api.get(`/api/podcasts/${id}`);
-      
+
       if (response.data?.success && response.data?.data) {
         setPodcastData(response.data.data);
       } else {
@@ -150,16 +151,16 @@ const PodcastDetailScreen: React.FC = () => {
 
     // Cek apakah video_url ada dan tidak kosong
     if (!videoUrl || videoUrl.trim() === '') {
-    Alert.alert(
+      Alert.alert(
         'Video Tidak Tersedia',
         `Video untuk podcast "${podcastTitle}" tidak tersedia saat ini.\n\nSilakan coba lagi nanti.`,
-      [
-        {
-          text: 'OK',
-          style: 'default',
-        },
-      ],
-    );
+        [
+          {
+            text: 'OK',
+            style: 'default',
+          },
+        ],
+      );
       return;
     }
 
@@ -188,7 +189,7 @@ const PodcastDetailScreen: React.FC = () => {
     }
     setIsFullscreen(true);
     setShowControls(true);
-    
+
     // Auto hide controls setelah 3 detik
     setTimeout(() => {
       setShowControls(false);
@@ -246,6 +247,11 @@ const PodcastDetailScreen: React.FC = () => {
     );
   };
 
+  // Handle video progress to track current playback position
+  const handleProgress = (data: any) => {
+    setCurrentTime(data.currentTime);
+  };
+
 
   if (loading) {
     return (
@@ -295,72 +301,75 @@ const PodcastDetailScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Podcast Cover/Video */}
+        {/* Podcast Cover/Video Container */}
         <View style={styles.playerContainer}>
           {podcastData.video_url && podcastData.video_url.trim() !== '' ? (
             <>
               <Video
                 ref={videoRef}
                 source={{ uri: podcastData.video_url }}
-                style={styles.playerCover}
+                style={isFullscreen ? styles.fullscreenVideo : styles.playerCover}
                 paused={!isPlaying}
                 resizeMode="contain"
                 onLoad={handleVideoLoad}
                 onLoadStart={handleVideoLoadStart}
                 onError={handleVideoError}
+                onProgress={handleProgress}
                 controls={false}
                 repeat={false}
               />
-              {isVideoLoading && (
+              {isVideoLoading && !isFullscreen && (
                 <View style={styles.videoLoadingOverlay}>
                   <ActivityIndicator size="large" color={COLORS.primary} />
                   <Text style={styles.loadingText}>Memuat video...</Text>
                 </View>
               )}
-              <TouchableOpacity
-                style={styles.videoControlsOverlay}
-                activeOpacity={1}
-                onPress={handleVideoTap}>
-                {showControls && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.playPauseButton}
-                      onPress={handlePlayPause}
-                      activeOpacity={0.8}>
-                      <FontAwesome6
-                        name={isPlaying ? "pause" : "play"}
-                        size={40}
-                        color="#fff"
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.fullscreenIconButton}
-                      onPress={handleFullscreen}
-                      activeOpacity={0.8}>
-                      <FontAwesome6
-                        name="maximize"
-                        size={24}
-                        color="#fff"
-                      />
-                    </TouchableOpacity>
-                  </>
-                )}
-              </TouchableOpacity>
+              {!isFullscreen && (
+                <TouchableOpacity
+                  style={styles.videoControlsOverlay}
+                  activeOpacity={1}
+                  onPress={handleVideoTap}>
+                  {showControls && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.playPauseButton}
+                        onPress={handlePlayPause}
+                        activeOpacity={0.8}>
+                        <FontAwesome6
+                          name={isPlaying ? "pause" : "play"}
+                          size={40}
+                          color="#fff"
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.fullscreenIconButton}
+                        onPress={handleFullscreen}
+                        activeOpacity={0.8}>
+                        <FontAwesome6
+                          name="maximize"
+                          size={24}
+                          color="#fff"
+                        />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </>
           ) : (
             <>
-          <Image
+              <Image
                 source={{ uri: coverImage }}
-            style={styles.playerCover}
-            resizeMode="cover"
-          />
-          <View style={styles.coverOverlay}>
-            <View style={styles.podcastBadge}>
-              <FontAwesome6 name="podcast" size={32} color="#fff" />
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.fullscreenButton}
+                style={styles.playerCover}
+                resizeMode="cover"
+              />
+              <View style={styles.coverOverlay}>
+                <View style={styles.podcastBadge}>
+                  <FontAwesome6 name="podcast" size={32} color="#fff" />
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.fullscreenButton}
                   onPress={() => {
                     Alert.alert(
                       'Video Tidak Tersedia',
@@ -368,10 +377,10 @@ const PodcastDetailScreen: React.FC = () => {
                       [{ text: 'OK' }],
                     );
                   }}>
-              <FontAwesome6 name="play" size={20} color="#fff" />
-              <Text style={styles.fullscreenButtonText}>Putar</Text>
-            </TouchableOpacity>
-          </View>
+                  <FontAwesome6 name="play" size={20} color="#fff" />
+                  <Text style={styles.fullscreenButtonText}>Putar</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
@@ -390,14 +399,14 @@ const PodcastDetailScreen: React.FC = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              activeOpacity={0.8} 
+            <TouchableOpacity
+              activeOpacity={0.8}
               style={styles.actionButton}
               onPress={() => setIsLiked(!isLiked)}>
-              <FontAwesome6 
-                name="heart" 
-                size={24} 
-                color={isLiked ? COLORS.primary : "rgba(255,255,255,0.7)"} 
+              <FontAwesome6
+                name="heart"
+                size={24}
+                color={isLiked ? COLORS.primary : "rgba(255,255,255,0.7)"}
                 solid={isLiked}
               />
               <Text style={styles.actionText}>Like</Text>
@@ -434,19 +443,19 @@ const PodcastDetailScreen: React.FC = () => {
             <Text style={styles.episodesTitle}>Episode Info</Text>
             <View style={styles.episodesList}>
               <View style={styles.episodeCard}>
-                  <View style={styles.episodeNumber}>
+                <View style={styles.episodeNumber}>
                   <Text style={styles.episodeNumberText}>
                     {podcastData.episode_number || '1'}
                   </Text>
-                  </View>
-                  <View style={styles.episodeInfo}>
-                    <Text style={styles.episodeTitle} numberOfLines={2}>
+                </View>
+                <View style={styles.episodeInfo}>
+                  <Text style={styles.episodeTitle} numberOfLines={2}>
                     {podcastData.title}
-                    </Text>
+                  </Text>
                   <Text style={styles.episodeDescription} numberOfLines={3}>
                     {podcastData.description || 'Tidak ada deskripsi tersedia.'}
-                    </Text>
-                    <View style={styles.episodeMeta}>
+                  </Text>
+                  <View style={styles.episodeMeta}>
                     <Text style={styles.episodeMetaText}>{formattedDuration}</Text>
                     {podcastData.release_date && (
                       <>
@@ -458,21 +467,21 @@ const PodcastDetailScreen: React.FC = () => {
                     )}
                     {podcastData.season && (
                       <>
-                      <Text style={styles.episodeMetaText}>•</Text>
+                        <Text style={styles.episodeMetaText}>•</Text>
                         <Text style={styles.episodeMetaText}>Season {podcastData.season}</Text>
                       </>
                     )}
-                    </View>
                   </View>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={styles.episodePlayButton}
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.episodePlayButton}
                   onPress={handlePlayPause}>
-                    <FontAwesome6
+                  <FontAwesome6
                     name={isPlaying ? "pause" : "play"}
-                      size={16}
-                      color="#fff"
-                    />
+                    size={16}
+                    color="#fff"
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -481,63 +490,70 @@ const PodcastDetailScreen: React.FC = () => {
       </ScrollView>
 
       {/* Fullscreen Video Modal */}
-      <Modal
-        visible={isFullscreen}
-        animationType="fade"
-        supportedOrientations={['landscape', 'portrait']}
-        onRequestClose={handleExitFullscreen}>
-        <StatusBar hidden={isFullscreen} />
-        <View style={styles.fullscreenContainer}>
-          <Video
-            ref={fullscreenVideoRef}
-            source={{ uri: podcastData?.video_url || '' }}
-            style={styles.fullscreenVideo}
-            paused={!isPlaying}
-            resizeMode="contain"
-            onLoad={handleVideoLoad}
-            onLoadStart={handleVideoLoadStart}
-            onError={handleVideoError}
-            controls={false}
-            repeat={false}
-            fullscreen={isFullscreen}
-            fullscreenOrientation="all"
-          />
-          {isVideoLoading && (
-            <View style={styles.fullscreenLoadingOverlay}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Memuat video...</Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={styles.fullscreenControlsOverlay}
-            activeOpacity={1}
-            onPress={handleFullscreenTap}>
-            {showControls && (
-              <>
-                <View style={styles.fullscreenHeader}>
-                  <TouchableOpacity
-                    style={styles.exitFullscreenButton}
-                    onPress={handleExitFullscreen}
-                    activeOpacity={0.8}>
-                    <FontAwesome6 name="xmark" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.fullscreenPlayPauseButton}>
-                  <TouchableOpacity
-                    onPress={handlePlayPause}
-                    activeOpacity={0.8}>
-                    <FontAwesome6
-                      name={isPlaying ? "pause" : "play"}
-                      size={60}
-                      color="#fff"
-                    />
-                  </TouchableOpacity>
-                </View>
-              </>
+      {isFullscreen && (
+        <Modal
+          visible={true}
+          animationType="fade"
+          supportedOrientations={['landscape', 'portrait']}
+          onRequestClose={handleExitFullscreen}>
+          <StatusBar hidden={true} />
+          <View style={styles.fullscreenContainer}>
+            <Video
+              ref={fullscreenVideoRef}
+              source={{ uri: podcastData?.video_url || '' }}
+              style={styles.fullscreenVideo}
+              paused={!isPlaying}
+              resizeMode="contain"
+              onLoad={() => {
+                // Seek to current position when fullscreen video loads
+                if (fullscreenVideoRef.current && currentTime > 0) {
+                  fullscreenVideoRef.current.seek(currentTime);
+                }
+                handleVideoLoad();
+              }}
+              onLoadStart={handleVideoLoadStart}
+              onError={handleVideoError}
+              onProgress={handleProgress}
+              controls={false}
+              repeat={false}
+            />
+            {isVideoLoading && (
+              <View style={styles.fullscreenLoadingOverlay}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Memuat video...</Text>
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
-      </Modal>
+            <TouchableOpacity
+              style={styles.fullscreenControlsOverlay}
+              activeOpacity={1}
+              onPress={handleFullscreenTap}>
+              {showControls && (
+                <>
+                  <View style={styles.fullscreenHeader}>
+                    <TouchableOpacity
+                      style={styles.exitFullscreenButton}
+                      onPress={handleExitFullscreen}
+                      activeOpacity={0.8}>
+                      <FontAwesome6 name="xmark" size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.fullscreenPlayPauseButton}>
+                    <TouchableOpacity
+                      onPress={handlePlayPause}
+                      activeOpacity={0.8}>
+                      <FontAwesome6
+                        name={isPlaying ? "pause" : "play"}
+                        size={60}
+                        color="#fff"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };

@@ -79,8 +79,9 @@ const MusicVideoDetailScreen: React.FC = () => {
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const videoRef = useRef<Video>(null);
-  const fullscreenVideoRef = useRef<Video>(null);
+  const [currentTime, setCurrentTime] = useState(0); // Track playback position
+  const videoRef = useRef<any>(null);
+  const fullscreenVideoRef = useRef<any>(null);
 
   // Format date dari ISO string ke format yang lebih readable
   const formatDate = (dateString: string | null): string => {
@@ -102,7 +103,7 @@ const MusicVideoDetailScreen: React.FC = () => {
       setLoading(true);
       const api = await getApiInstance();
       const response = await api.get(`/api/music-videos/${id}`);
-      
+
       if (response.data?.success && response.data?.data) {
         setMusicVideoData(response.data.data);
       } else {
@@ -153,7 +154,7 @@ const MusicVideoDetailScreen: React.FC = () => {
 
     setIsPlaying(!isPlaying);
     setShowControls(true);
-    
+
     // Auto hide controls setelah 3 detik
     setTimeout(() => {
       setShowControls(false);
@@ -181,7 +182,7 @@ const MusicVideoDetailScreen: React.FC = () => {
     }
     setIsFullscreen(true);
     setShowControls(true);
-    
+
     // Auto hide controls setelah 3 detik
     setTimeout(() => {
       setShowControls(false);
@@ -225,6 +226,11 @@ const MusicVideoDetailScreen: React.FC = () => {
         },
       ],
     );
+  };
+
+  // Handle video progress to track current playback position
+  const handleProgress = (data: any) => {
+    setCurrentTime(data.currentTime);
   };
 
   if (loading) {
@@ -274,29 +280,30 @@ const MusicVideoDetailScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Video Player */}
+        {/* Video Player Container */}
         <View style={styles.videoContainer}>
           {musicVideoData.video_url && musicVideoData.video_url.trim() !== '' ? (
             <>
               <Video
                 ref={videoRef}
                 source={{ uri: musicVideoData.video_url }}
-                style={styles.video}
+                style={isFullscreen ? styles.fullscreenVideo : styles.video}
                 paused={!isPlaying}
                 resizeMode="contain"
                 onLoad={handleVideoLoad}
                 onLoadStart={handleVideoLoadStart}
                 onError={handleVideoError}
+                onProgress={handleProgress}
                 controls={false}
                 repeat={false}
               />
-              {isVideoLoading && (
+              {isVideoLoading && !isFullscreen && (
                 <View style={styles.videoLoadingOverlay}>
                   <ActivityIndicator size="large" color={COLORS.primary} />
                   <Text style={styles.loadingText}>Memuat video...</Text>
                 </View>
               )}
-              {showControls && (
+              {!isFullscreen && showControls && (
                 <View style={styles.videoControlsOverlay}>
                   <TouchableOpacity
                     style={styles.playPauseButton}
@@ -323,22 +330,22 @@ const MusicVideoDetailScreen: React.FC = () => {
             </>
           ) : (
             <>
-          <Image
+              <Image
                 source={{ uri: thumbnailImage }}
-            style={styles.video}
-            resizeMode="cover"
-          />
-          <View style={styles.controlsOverlay}>
-            <View style={styles.playPauseButton}>
-              <FontAwesome6
-                name="play"
-                size={40}
-                color="#fff"
+                style={styles.video}
+                resizeMode="cover"
               />
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.fullscreenButton}
+              <View style={styles.controlsOverlay}>
+                <View style={styles.playPauseButton}>
+                  <FontAwesome6
+                    name="play"
+                    size={40}
+                    color="#fff"
+                  />
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.fullscreenButton}
                   onPress={() => {
                     Alert.alert(
                       'Video Tidak Tersedia',
@@ -346,10 +353,10 @@ const MusicVideoDetailScreen: React.FC = () => {
                       [{ text: 'OK' }],
                     );
                   }}>
-              <FontAwesome6 name="play" size={20} color="#fff" />
-              <Text style={styles.fullscreenButtonText}>Putar</Text>
-            </TouchableOpacity>
-          </View>
+                  <FontAwesome6 name="play" size={20} color="#fff" />
+                  <Text style={styles.fullscreenButtonText}>Putar</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
@@ -373,14 +380,14 @@ const MusicVideoDetailScreen: React.FC = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              activeOpacity={0.8} 
+            <TouchableOpacity
+              activeOpacity={0.8}
               style={styles.actionButton}
               onPress={() => setIsLiked(!isLiked)}>
-              <FontAwesome6 
-                name={isLiked ? "heart" : "heart"} 
-                size={24} 
-                color={isLiked ? COLORS.primary : "rgba(255,255,255,0.7)"} 
+              <FontAwesome6
+                name={isLiked ? "heart" : "heart"}
+                size={24}
+                color={isLiked ? COLORS.primary : "rgba(255,255,255,0.7)"}
                 solid={isLiked}
               />
               <Text style={styles.actionText}>Like</Text>
@@ -426,62 +433,69 @@ const MusicVideoDetailScreen: React.FC = () => {
       </ScrollView>
 
       {/* Fullscreen Video Modal */}
-      <Modal
-        visible={isFullscreen}
-        animationType="fade"
-        supportedOrientations={['landscape', 'portrait']}
-        onRequestClose={handleExitFullscreen}>
-        <StatusBar hidden={isFullscreen} />
-        <View style={styles.fullscreenContainer}>
-          <Video
-            ref={fullscreenVideoRef}
-            source={{ uri: musicVideoData?.video_url || '' }}
-            style={styles.fullscreenVideo}
-            paused={!isPlaying}
-            resizeMode="contain"
-            onLoad={handleVideoLoad}
-            onLoadStart={handleVideoLoadStart}
-            onError={handleVideoError}
-            controls={false}
-            repeat={false}
-            fullscreen={isFullscreen}
-            fullscreenOrientation="all"
-          />
-          {isVideoLoading && (
-            <View style={styles.fullscreenLoadingOverlay}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Memuat video...</Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={styles.fullscreenControlsOverlay}
-            activeOpacity={1}
-            onPress={handleFullscreenTap}>
-            {showControls && (
-              <>
-                <View style={styles.fullscreenHeader}>
-                  <TouchableOpacity
-                    style={styles.exitFullscreenButton}
-                    onPress={handleExitFullscreen}
-                    activeOpacity={0.8}>
-                    <FontAwesome6 name="xmark" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity
-                  style={styles.fullscreenPlayPauseButton}
-                  onPress={handlePlayPause}
-                  activeOpacity={0.8}>
-                  <FontAwesome6
-                    name={isPlaying ? "pause" : "play"}
-                    size={60}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </>
+      {isFullscreen && (
+        <Modal
+          visible={true}
+          animationType="fade"
+          supportedOrientations={['landscape', 'portrait']}
+          onRequestClose={handleExitFullscreen}>
+          <StatusBar hidden={true} />
+          <View style={styles.fullscreenContainer}>
+            <Video
+              ref={fullscreenVideoRef}
+              source={{ uri: musicVideoData?.video_url || '' }}
+              style={styles.fullscreenVideo}
+              paused={!isPlaying}
+              resizeMode="contain"
+              onLoad={() => {
+                // Seek to current position when fullscreen video loads
+                if (fullscreenVideoRef.current && currentTime > 0) {
+                  fullscreenVideoRef.current.seek(currentTime);
+                }
+                handleVideoLoad();
+              }}
+              onLoadStart={handleVideoLoadStart}
+              onError={handleVideoError}
+              onProgress={handleProgress}
+              controls={false}
+              repeat={false}
+            />
+            {isVideoLoading && (
+              <View style={styles.fullscreenLoadingOverlay}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Memuat video...</Text>
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
-      </Modal>
+            <TouchableOpacity
+              style={styles.fullscreenControlsOverlay}
+              activeOpacity={1}
+              onPress={handleFullscreenTap}>
+              {showControls && (
+                <>
+                  <View style={styles.fullscreenHeader}>
+                    <TouchableOpacity
+                      style={styles.exitFullscreenButton}
+                      onPress={handleExitFullscreen}
+                      activeOpacity={0.8}>
+                      <FontAwesome6 name="xmark" size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.fullscreenPlayPauseButton}
+                    onPress={handlePlayPause}
+                    activeOpacity={0.8}>
+                    <FontAwesome6
+                      name={isPlaying ? "pause" : "play"}
+                      size={60}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
