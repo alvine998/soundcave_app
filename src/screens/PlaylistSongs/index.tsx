@@ -218,7 +218,7 @@ const PlaylistSongsScreen: React.FC = () => {
         style={[styles.songRow, isActive && styles.songRowActive]}
         activeOpacity={0.85}
         onPress={() => {
-          playSong(item);
+          playSong(item, songs);
           showToast({
             message: `Playing ${item.title}`,
             type: 'info',

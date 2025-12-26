@@ -94,22 +94,22 @@ const CavelistScreen: React.FC = () => {
       });
 
       let data = response.data?.data || [];
-      
+
       // Filter hanya yang status publish dan video_url ada
-      data = data.filter((item: CavelistData) => 
-        item.status === 'publish' && 
-        item.video_url && 
+      data = data.filter((item: CavelistData) =>
+        item.status === 'publish' &&
+        item.video_url &&
         item.video_url.trim() !== '' &&
         !item.deleted_at
       );
-      
+
       // Shuffle jika diminta
       if (shuffle && data.length > 0) {
         data = shuffleArray(data);
       }
-      
+
       setVideos(data);
-      
+
       // Reset viewer tracking untuk refresh
       if (isRefresh) {
         viewerUpdatedRef.current = new Set();
@@ -121,11 +121,11 @@ const CavelistScreen: React.FC = () => {
         });
         viewerTimersRef.current = {};
       }
-      
+
       // Reset ke index 0 setelah refresh
       setCurrentIndex(0);
       setIsPlaying(true);
-      
+
       // Scroll ke top
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({ index: 0, animated: false });
@@ -226,7 +226,7 @@ const CavelistScreen: React.FC = () => {
         setIsRefreshing(true);
         fetchVideos(true, true); // Refresh dengan shuffle, isRefresh = true
       }
-      
+
       return () => {
         // Screen unfocused - pause semua video dan clear timers
         Object.values(videoRefs.current).forEach((video) => {
@@ -276,7 +276,7 @@ const CavelistScreen: React.FC = () => {
       const newIndex = viewableItems[0].index;
       const currentIdx = currentIndexRef.current;
       const currentVideos = videosRef.current;
-      
+
       if (newIndex !== null && newIndex !== undefined && newIndex !== currentIdx) {
         // Clear timer untuk previous video
         const previousVideo = currentVideos[currentIdx];
@@ -289,17 +289,17 @@ const CavelistScreen: React.FC = () => {
         if (videoRefs.current[currentIdx]) {
           videoRefs.current[currentIdx]?.pause();
         }
-        
+
         // Play new video
         setCurrentIndex(newIndex);
         setIsPlaying(true);
-        
+
         // Track viewer untuk video baru
         const newVideo = currentVideos[newIndex];
         if (newVideo) {
           trackViewer(newVideo.id);
         }
-        
+
         // Small delay to ensure video is ready
         setTimeout(() => {
           if (videoRefs.current[newIndex]) {
@@ -320,7 +320,7 @@ const CavelistScreen: React.FC = () => {
   const handleScroll = useCallback((event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     const previousOffset = scrollOffsetRef.current;
-    
+
     // Deteksi arah scroll dan pull down distance
     if (currentIndex === 0) {
       // Deteksi pull down: offsetY negatif berarti user pull down
@@ -329,7 +329,7 @@ const CavelistScreen: React.FC = () => {
         const distance = Math.abs(offsetY);
         pullDownDistanceRef.current = distance;
         setPullDownDistance(distance);
-        
+
         // Trigger refresh jika pull down cukup jauh (threshold: 100px)
         if (distance > 100 && !isRefreshing) {
           setIsRefreshing(true);
@@ -350,7 +350,7 @@ const CavelistScreen: React.FC = () => {
       setPullDownDistance(0);
       lastScrollDirectionRef.current = null;
     }
-    
+
     scrollOffsetRef.current = offsetY;
   }, [currentIndex, isRefreshing, fetchVideos]);
 
@@ -367,37 +367,37 @@ const CavelistScreen: React.FC = () => {
 
   const handleScrollEndDrag = useCallback((event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    
+
     // Deteksi pull down dari index 0 setelah drag selesai
     if (
-      currentIndex === 0 && 
-      pullDownDistanceRef.current > 80 && 
+      currentIndex === 0 &&
+      pullDownDistanceRef.current > 80 &&
       lastScrollDirectionRef.current === 'down' &&
       !isRefreshing
     ) {
       setIsRefreshing(true);
       fetchVideos(true, true); // Refresh dengan shuffle, isRefresh = true
     }
-    
+
     // Reset pull down distance jika tidak cukup untuk trigger refresh
     if (pullDownDistanceRef.current <= 80) {
       pullDownDistanceRef.current = 0;
       setPullDownDistance(0);
     }
-    
+
     scrollOffsetRef.current = offsetY;
     isScrollingRef.current = false;
   }, [currentIndex, isRefreshing, fetchVideos]);
 
   const handleMomentumScrollEnd = useCallback((event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    
+
     // Reset pull down distance setelah momentum scroll selesai
     if (offsetY >= 0) {
       pullDownDistanceRef.current = 0;
       setPullDownDistance(0);
     }
-    
+
     scrollOffsetRef.current = offsetY;
   }, []);
 
@@ -470,7 +470,7 @@ const CavelistScreen: React.FC = () => {
   const handleShare = useCallback(async (video: CavelistData) => {
     try {
       const shareMessage = `${video.title} by ${video.artist_name}\n${video.description || ''}\n\nCheck out this video on SoundCave!`;
-      
+
       const result = await Share.share({
         message: shareMessage,
         title: video.title,
@@ -493,6 +493,10 @@ const CavelistScreen: React.FC = () => {
       Alert.alert('Error', 'Gagal membagikan video');
     }
   }, [updateCavelist]);
+
+  // Calculate video height: full screen height minus only top inset for true fullscreen
+  // This makes videos extend behind the tab bar for a fullscreen experience like TikTok/Reels
+  const VIDEO_HEIGHT = SCREEN_HEIGHT - insets.top;
 
   const renderVideoItem = ({ item, index }: { item: CavelistData; index: number }) => {
     const isCurrentVideo = index === currentIndex;
@@ -555,14 +559,14 @@ const CavelistScreen: React.FC = () => {
               </Text>
             </View>
             <View style={styles.videoInfoRight}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleLike(item.id)}
               >
                 <View style={styles.actionIconContainer}>
-                  <FontAwesome6 
-                    name="heart" 
-                    size={28} 
+                  <FontAwesome6
+                    name="heart"
+                    size={28}
                     color={likedVideos.has(item.id) ? COLORS.primary : "#fff"}
                     solid={likedVideos.has(item.id)}
                   />
@@ -575,7 +579,7 @@ const CavelistScreen: React.FC = () => {
                 </View>
                 <Text style={styles.actionText}>0</Text>
               </TouchableOpacity> */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleShare(item)}
               >
@@ -613,12 +617,6 @@ const CavelistScreen: React.FC = () => {
       </View>
     );
   }
-
-  // Calculate video height: full screen minus top inset (handled by paddingTop) and bottom tabs
-  // Container already has paddingTop: insets.top, so FlatList content area is SCREEN_HEIGHT - insets.top
-  // We need to subtract bottom tabs height: TAB_BAR_BASE_HEIGHT + insets.bottom (for safe area)
-  const tabBarTotalHeight = TAB_BAR_BASE_HEIGHT + insets.bottom;
-  const VIDEO_HEIGHT = SCREEN_HEIGHT - insets.top - tabBarTotalHeight;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

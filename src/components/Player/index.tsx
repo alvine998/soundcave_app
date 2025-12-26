@@ -65,16 +65,16 @@ const PlayerContext = createContext<PlayerContextValue>({
   isLoading: false,
   currentTime: 0,
   duration: 0,
-  playSong: () => {},
-  pause: () => {},
-  resume: () => {},
-  nextSong: () => {},
-  previousSong: () => {},
-  stop: () => {},
-  seek: () => {},
+  playSong: () => { },
+  pause: () => { },
+  resume: () => { },
+  nextSong: () => { },
+  previousSong: () => { },
+  stop: () => { },
+  seek: () => { },
 });
 
-export const PlayerProvider: React.FC<PlayerProviderProps> = ({ 
+export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   children,
   navigationRef,
   onNavigationStateChange,
@@ -93,6 +93,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPlayingSongRef = useRef<boolean>(false); // Flag to prevent duplicate playSong calls
   const playlistQueueRef = useRef<Song[]>([]); // Queue untuk menyimpan playlist yang sedang diputar
+  const playSongRef = useRef<((song: Song, playlist?: Song[]) => void) | null>(null); // Ref to playSong function
 
   // Update full player visibility when route changes
   useEffect(() => {
@@ -297,20 +298,62 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     // Resume playback - the callback is called when playback finishes
     soundRef.current.play(success => {
-      // When playback completes, set playing to false
+      // When playback completes, clear progress interval
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
-      setPlayerState(prev => {
-        isPlayingRef.current = false;
-        updateMusicControl(prev.currentSong, false);
-        return {
-          ...prev,
-          isPlaying: false,
-          currentTime: 0,
-        };
-      });
+
+      // Check if there's a playlist and auto-play next song
+      const hasPlaylist = playlistQueueRef.current.length > 0;
+      if (hasPlaylist && success) {
+        // Auto-play next song in playlist
+        const currentSong = currentSongRef.current;
+        const playlist = playlistQueueRef.current;
+        const currentIndex = playlist.findIndex(s => s.url === currentSong?.url);
+
+        // Only auto-play if we're not at the last song
+        if (currentIndex !== -1 && currentIndex < playlist.length - 1) {
+          // There's a next song, play it
+          const nextSongToPlay = playlist[currentIndex + 1];
+          setPlayerState(prev => {
+            isPlayingRef.current = false;
+            return {
+              ...prev,
+              isPlaying: false,
+              currentTime: 0,
+            };
+          });
+          // Small delay before playing next song for smooth transition
+          setTimeout(() => {
+            if (playSongRef.current) {
+              playSongRef.current(nextSongToPlay, [...playlist]);
+            }
+          }, 300);
+        } else {
+          // Last song in playlist or song not found, just stop
+          setPlayerState(prev => {
+            isPlayingRef.current = false;
+            updateMusicControl(prev.currentSong, false);
+            return {
+              ...prev,
+              isPlaying: false,
+              currentTime: 0,
+            };
+          });
+        }
+      } else {
+        // No playlist, just stop playing
+        setPlayerState(prev => {
+          isPlayingRef.current = false;
+          updateMusicControl(prev.currentSong, false);
+          return {
+            ...prev,
+            isPlaying: false,
+            currentTime: 0,
+          };
+        });
+      }
     });
   }, [updateMusicControl]);
 
@@ -343,7 +386,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
       // Use ref to get current song to avoid stale closure issues
       const currentSong = currentSongRef.current;
-      
+
       // If same song is already playing, pause it
       if (
         soundRef.current &&
@@ -379,7 +422,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
-      
+
       // Stop and release current sound, then play new one
       const stopAndPlay = () => {
         if (soundRef.current) {
@@ -405,119 +448,161 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
         const playback = new Sound(song.url, '', (error) => {
           if (error) {
             // Log error so we can see why audio failed to load (e.g. network / format issues)
-          console.error('Failed to load sound:', {
-            url: song.url,
-            title: song.title,
-            artist: song.artist,
-            error: error,
-          });
-          Alert.alert(
-            'Gagal Memuat Audio',
-            `Tidak dapat memuat audio untuk "${song.title}".\n\nPastikan koneksi internet stabil dan URL audio valid.`,
-            [{ text: 'OK' }]
-          );
-          setPlayerState({
-            currentSong: null,
-            isPlaying: false,
-            isLoading: false,
-            currentTime: 0,
-            duration: 0,
-          });
-          isPlayingSongRef.current = false; // Reset flag on error
-          return;
-        }
-
-        soundRef.current = playback;
-        currentSongRef.current = song;
-        
-        // Get duration immediately
-        const duration = playback.getDuration();
-        setPlayerState({
-          currentSong: song,
-          isPlaying: false,
-          isLoading: false,
-          currentTime: 0,
-          duration: isNaN(duration) || duration < 0 ? 0 : duration,
-        });
-
-        // Auto-play the song
-        // Set playing state immediately after calling play
-        isPlayingRef.current = true;
-        updateMusicControl(song, true);
-        setPlayerState(prev => ({
-          ...prev,
-          isPlaying: true,
-        }));
-
-        // Start progress tracking
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-        }
-        progressIntervalRef.current = setInterval(() => {
-          if (soundRef.current && isPlayingRef.current) {
-            soundRef.current.getCurrentTime((currentTime: number) => {
-              if (soundRef.current) {
-                const duration = soundRef.current.getDuration();
-                setPlayerState(prev => ({
-                  ...prev,
-                  currentTime: isNaN(currentTime) ? 0 : currentTime,
-                  duration: isNaN(duration) || duration < 0 ? prev.duration : duration,
-                }));
-              }
-            });
-          }
-        }, 100);
-
-        // Reset flag after a short delay to allow playback to start
-        // This prevents duplicate calls during the transition period
-        setTimeout(() => {
-          isPlayingSongRef.current = false;
-        }, 500);
-
-        playback.play((success) => {
-          if (!success) {
-            console.error('Playback failed for song:', {
+            console.error('Failed to load sound:', {
+              url: song.url,
               title: song.title,
               artist: song.artist,
-              url: song.url,
+              error: error,
             });
             Alert.alert(
-              'Gagal Memutar',
-              `Tidak dapat memutar "${song.title}".\n\nFormat audio mungkin tidak didukung atau file rusak.`,
+              'Gagal Memuat Audio',
+              `Tidak dapat memuat audio untuk "${song.title}".\n\nPastikan koneksi internet stabil dan URL audio valid.`,
               [{ text: 'OK' }]
             );
-            // Clear progress interval on error
-            if (progressIntervalRef.current) {
-              clearInterval(progressIntervalRef.current);
-              progressIntervalRef.current = null;
-            }
-            setPlayerState(prev => {
-              isPlayingRef.current = false;
-              updateMusicControl(prev.currentSong, false);
-              return {
-                ...prev,
-                isPlaying: false,
-              };
+            setPlayerState({
+              currentSong: null,
+              isPlaying: false,
+              isLoading: false,
+              currentTime: 0,
+              duration: 0,
             });
             isPlayingSongRef.current = false; // Reset flag on error
             return;
           }
-          // This callback is called when playback finishes
-          // Clear progress interval when finished
+
+          soundRef.current = playback;
+          currentSongRef.current = song;
+
+          // Get duration immediately
+          const duration = playback.getDuration();
+          setPlayerState({
+            currentSong: song,
+            isPlaying: false,
+            isLoading: false,
+            currentTime: 0,
+            duration: isNaN(duration) || duration < 0 ? 0 : duration,
+          });
+
+          // Auto-play the song
+          // Set playing state immediately after calling play
+          isPlayingRef.current = true;
+          updateMusicControl(song, true);
+          setPlayerState(prev => ({
+            ...prev,
+            isPlaying: true,
+          }));
+
+          // Start progress tracking
           if (progressIntervalRef.current) {
             clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
           }
-          setPlayerState(prev => {
-            isPlayingRef.current = false;
-            updateMusicControl(prev.currentSong, false);
-            return {
-              ...prev,
-              isPlaying: false,
-              currentTime: 0,
-            };
+          progressIntervalRef.current = setInterval(() => {
+            if (soundRef.current && isPlayingRef.current) {
+              soundRef.current.getCurrentTime((currentTime: number) => {
+                if (soundRef.current) {
+                  const duration = soundRef.current.getDuration();
+                  setPlayerState(prev => ({
+                    ...prev,
+                    currentTime: isNaN(currentTime) ? 0 : currentTime,
+                    duration: isNaN(duration) || duration < 0 ? prev.duration : duration,
+                  }));
+                }
+              });
+            }
+          }, 100);
+
+          // Reset flag after a short delay to allow playback to start
+          // This prevents duplicate calls during the transition period
+          setTimeout(() => {
+            isPlayingSongRef.current = false;
+          }, 500);
+
+          playback.play((success) => {
+            if (!success) {
+              console.error('Playback failed for song:', {
+                title: song.title,
+                artist: song.artist,
+                url: song.url,
+              });
+              Alert.alert(
+                'Gagal Memutar',
+                `Tidak dapat memutar "${song.title}".\n\nFormat audio mungkin tidak didukung atau file rusak.`,
+                [{ text: 'OK' }]
+              );
+              // Clear progress interval on error
+              if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+                progressIntervalRef.current = null;
+              }
+              setPlayerState(prev => {
+                isPlayingRef.current = false;
+                updateMusicControl(prev.currentSong, false);
+                return {
+                  ...prev,
+                  isPlaying: false,
+                };
+              });
+              isPlayingSongRef.current = false; // Reset flag on error
+              return;
+            }
+            // This callback is called when playback finishes successfully
+            // Clear progress interval when finished
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
+
+            // Check if there's a playlist and auto-play next song
+            const hasPlaylist = playlistQueueRef.current.length > 0;
+            if (hasPlaylist) {
+              // Auto-play next song in playlist
+              const currentSong = currentSongRef.current;
+              const playlist = playlistQueueRef.current;
+              const currentIndex = playlist.findIndex(s => s.url === currentSong?.url);
+
+              // Only auto-play if we're not at the last song or if we want to loop
+              if (currentIndex !== -1 && currentIndex < playlist.length - 1) {
+                // There's a next song, play it
+                const nextSongToPlay = playlist[currentIndex + 1];
+                setPlayerState(prev => {
+                  isPlayingRef.current = false;
+                  return {
+                    ...prev,
+                    isPlaying: false,
+                    currentTime: 0,
+                  };
+                });
+                // Small delay before playing next song for smooth transition
+                setTimeout(() => {
+                  if (playSongRef.current) {
+                    playSongRef.current(nextSongToPlay, [...playlist]);
+                  }
+                }, 300);
+              } else {
+                // Last song in playlist or song not found, just stop
+                setPlayerState(prev => {
+                  isPlayingRef.current = false;
+                  updateMusicControl(prev.currentSong, false);
+                  return {
+                    ...prev,
+                    isPlaying: false,
+                    currentTime: 0,
+                  };
+                });
+              }
+            } else {
+              // No playlist, just stop playing
+              setPlayerState(prev => {
+                isPlayingRef.current = false;
+                updateMusicControl(prev.currentSong, false);
+                return {
+                  ...prev,
+                  isPlaying: false,
+                  currentTime: 0,
+                };
+              });
+            }
           });
-        });
         }); // Close Sound constructor callback
       };
 
@@ -529,6 +614,11 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
     [playerState.currentSong, playerState.isPlaying, playerState.isLoading, updateMusicControl],
   );
 
+  // Update playSongRef whenever playSong changes
+  useEffect(() => {
+    playSongRef.current = playSong;
+  }, [playSong]);
+
   const nextSong = useCallback(() => {
     // Prevent duplicate calls
     if (isPlayingSongRef.current) {
@@ -538,10 +628,10 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     // Use both ref and state to ensure we have the current song
     const currentSong = currentSongRef.current || playerState.currentSong;
-    
+
     // Use playlist queue if available, otherwise fallback to SONGS
     const playlist = playlistQueueRef.current.length > 0 ? playlistQueueRef.current : SONGS;
-    
+
     if (!currentSong) {
       // If no song is playing, play the first song
       if (playlist.length > 0) {
@@ -561,7 +651,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     const nextIndex = (currentIndex + 1) % playlist.length;
     const nextSongToPlay = playlist[nextIndex];
-    
+
     // Only play if next song is different from current song
     if (nextSongToPlay.url !== currentSong.url) {
       playSong(nextSongToPlay, [...playlist]);
@@ -581,10 +671,10 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     // Use both ref and state to ensure we have the current song
     const currentSong = currentSongRef.current || playerState.currentSong;
-    
+
     // Use playlist queue if available, otherwise fallback to SONGS
     const playlist = playlistQueueRef.current.length > 0 ? playlistQueueRef.current : SONGS;
-    
+
     if (!currentSong) {
       // If no song is playing, play the last song
       if (playlist.length > 0) {
@@ -604,7 +694,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     const prevIndex = currentIndex === 0 ? playlist.length - 1 : currentIndex - 1;
     const prevSongToPlay = playlist[prevIndex];
-    
+
     // Only play if previous song is different from current song
     if (prevSongToPlay.url !== currentSong.url) {
       playSong(prevSongToPlay, [...playlist]);
@@ -620,13 +710,13 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       // Clamp time between 0 and duration
       const duration = soundRef.current.getDuration();
       const clampedTime = Math.max(0, Math.min(time, duration));
-      
+
       // Update currentTime immediately for UI responsiveness
       setPlayerState(prev => ({
         ...prev,
         currentTime: clampedTime,
       }));
-      
+
       // Seek to the new position
       soundRef.current.setCurrentTime(clampedTime);
     }
@@ -705,22 +795,22 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
         stop,
         seek,
       }}>
-          {children}
-          {!isFullPlayerVisible && (
-            <PlayerBar
-              song={playerState.currentSong}
-              isPlaying={playerState.isPlaying}
-              isLoading={playerState.isLoading}
-              onPause={pause}
-              onResume={resume}
-              onNext={nextSong}
-              onPrevious={previousSong}
-              onStop={stop}
-              onOpenFullPlayer={() => {
-                navigationRef?.current?.navigate('FullPlayer');
-              }}
-            />
-          )}
+      {children}
+      {!isFullPlayerVisible && (
+        <PlayerBar
+          song={playerState.currentSong}
+          isPlaying={playerState.isPlaying}
+          isLoading={playerState.isLoading}
+          onPause={pause}
+          onResume={resume}
+          onNext={nextSong}
+          onPrevious={previousSong}
+          onStop={stop}
+          onOpenFullPlayer={() => {
+            navigationRef?.current?.navigate('FullPlayer');
+          }}
+        />
+      )}
     </PlayerContext.Provider>
   );
 };
@@ -826,7 +916,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
     if (song) {
       // Reset pan position when new song starts
       pan.setValue({ x: 0, y: 0 });
-      
+
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,

@@ -92,11 +92,11 @@ const MusicGenreScreen: React.FC = () => {
           genre: genre.trim(),
         },
       });
-      
+
       // Handle berbagai format response API
       const data = response.data?.data || response.data || [];
       const pagination = response.data?.pagination || {};
-      
+
       // Map data dari API ke struktur Song
       const mappedSongs: Song[] = Array.isArray(data)
         ? data.map(mapApiDataToSong)
@@ -205,7 +205,7 @@ const MusicGenreScreen: React.FC = () => {
             <FontAwesome6 name="chevron-left" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{genre}</Text>
-          <View style={styles.backButton} />
+          {/* <View style={styles.backButton} /> */}
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -225,7 +225,7 @@ const MusicGenreScreen: React.FC = () => {
           <FontAwesome6 name="chevron-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{genre}</Text>
-        <View style={styles.backButton} />
+        {/* <View style={styles.backButton} /> */}
       </View>
       <FlatList
         data={songs}
@@ -276,9 +276,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: normalize(20),
     paddingBottom: normalize(10),
+    gap: normalize(12),
   },
   backButton: {
     width: normalize(40),
@@ -290,8 +291,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: normalize(20),
     fontWeight: '700',
-    flex: 1,
-    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
