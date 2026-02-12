@@ -82,7 +82,7 @@ const HomeTabs: React.FC<HomeTabsProps> = ({
                 /> */}
                 <Image
                   source={require('../assets/images/41885.png')}
-                  style={{width: normalize(25), height: normalize(45)}}
+                  style={{ width: normalize(25), height: normalize(45) }}
                 />
               </View>
             );
@@ -127,7 +127,7 @@ const getIconName = (route: string) => {
 const styles = StyleSheet.create({
   tabBackground: {
     flex: 1,
-    backgroundColor: '#0f0f0f',
+    backgroundColor: 'rgba(40, 40, 40, 0.5)',
   },
   homeIconContainer: {
     borderRadius: normalize(999),

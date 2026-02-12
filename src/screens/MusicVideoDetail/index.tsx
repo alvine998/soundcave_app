@@ -24,6 +24,7 @@ import Video from 'react-native-video';
 import { COLORS } from '../../config/color';
 import { getApiInstance } from '../../utils/api';
 import { useToast } from '../../components/Toast';
+import { usePlayer } from '../../components/Player';
 
 const FALLBACK_COVER =
   'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -69,6 +70,7 @@ const MusicVideoDetailScreen: React.FC = () => {
   const route = useRoute<MusicVideoDetailRouteProp>();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { pause: pauseBackgroundMusic } = usePlayer();
 
   const { id } = route.params;
 
@@ -153,6 +155,9 @@ const MusicVideoDetailScreen: React.FC = () => {
     }
 
     setIsPlaying(!isPlaying);
+    if (!isPlaying) {
+      pauseBackgroundMusic();
+    }
     setShowControls(true);
 
     // Auto hide controls setelah 3 detik

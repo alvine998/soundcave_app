@@ -11,9 +11,11 @@ import {
     RefreshControl,
     ActivityIndicator,
     Dimensions,
+    Platform,
     ListRenderItem,
     InteractionManager,
 } from 'react-native';
+import Skeleton from '../../components/Skeleton';
 import normalize from 'react-native-normalize';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -55,6 +57,11 @@ type RootStackParamList = {
         playlistId: number;
         playlistName?: string;
         playlistCover?: string;
+    };
+    ArtistDetail: {
+        id: number;
+        name: string;
+        image: string | null;
     };
     Profile: undefined;
 };
@@ -326,8 +333,17 @@ const ArtistCard = React.memo<{
     artist: Artist;
 }>(
     ({ artist }) => {
+        const navigation = useNavigation<HomeScreenNavigationProp>();
+
         return (
-            <View style={styles.artistItem}>
+            <TouchableOpacity
+                style={styles.artistItem}
+                onPress={() => navigation.navigate('ArtistDetail', {
+                    id: artist.id,
+                    name: artist.name,
+                    image: artist.profile_image
+                })}
+            >
                 {artist.profile_image ? (
                     <Image
                         source={{ uri: artist.profile_image }}
@@ -345,7 +361,7 @@ const ArtistCard = React.memo<{
                 <Text style={styles.artistName} numberOfLines={1}>
                     {artist.name}
                 </Text>
-            </View>
+            </TouchableOpacity>
         );
     },
     (prevProps, nextProps) => prevProps.artist.id === nextProps.artist.id
@@ -357,25 +373,22 @@ const NewsCard = React.memo<{
 }>(
     ({ news, onPress }) => {
         return (
-            <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
-                <ImageBackground
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onPress}
+                style={styles.newsCard}
+            >
+                <Image
                     source={{ uri: news.image_url }}
-                    style={styles.newsCard}
-                    imageStyle={styles.newsCardBackgroundImage}
-                >
-                    <View style={styles.newsCardOverlay} />
-                    <View style={styles.newsCardContent}>
-                        <View style={styles.newsMetaRow}>
-                            <Text style={styles.newsDate}>{news.date}</Text>
-                        </View>
-                        <Text style={styles.newsTitle} numberOfLines={2}>
-                            {news.title}
-                        </Text>
-                        <Text style={styles.newsSummary} numberOfLines={2}>
-                            {news.summary}
-                        </Text>
-                    </View>
-                </ImageBackground>
+                    style={styles.newsCardThumbnail}
+                    resizeMode="cover"
+                />
+                <View style={styles.newsCardContent}>
+                    <Text style={styles.newsTitle} numberOfLines={2}>
+                        {news.title}
+                    </Text>
+                    <Text style={styles.newsDate}>{news.date}</Text>
+                </View>
             </TouchableOpacity>
         );
     },
@@ -661,6 +674,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         });
     }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists]);
 
+    // Prefetch critical images
+    useEffect(() => {
+        if (latestDrops.length > 0) {
+            latestDrops.slice(0, 10).forEach(song => {
+                if (song.cover) Image.prefetch(song.cover);
+            });
+        }
+        if (topStreamedSongs.length > 0) {
+            topStreamedSongs.slice(0, 5).forEach(song => {
+                if (song.cover) Image.prefetch(song.cover);
+            });
+        }
+    }, [latestDrops, topStreamedSongs]);
+
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         Promise.all([
@@ -700,21 +727,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         const result: Section[] = [
             { id: 'header', type: 'header' },
         ];
-
         if (topStreamedSongs.length > 0 || loadingTopStreamed) {
             result.push({ id: 'topStreamed', type: 'topStreamed', data: topStreamedSongs });
         }
 
-        if (selectedGenres.length > 0) {
-            result.push({ id: 'genres', type: 'genres', data: selectedGenres });
+        if (featuredArtists.length > 0 || loadingFeaturedArtists) {
+            result.push({ id: 'artists', type: 'artists', data: featuredArtists });
+        }
+
+        if (musicVideos.length > 0 || loadingMusicVideos) {
+            result.push({ id: 'musicVideos', type: 'musicVideos', data: musicVideos });
         }
 
         if (podcasts.length > 0 || loadingPodcasts) {
             result.push({ id: 'podcasts', type: 'podcasts', data: podcasts });
         }
 
-        if (musicVideos.length > 0 || loadingMusicVideos) {
-            result.push({ id: 'musicVideos', type: 'musicVideos', data: musicVideos });
+        if (selectedGenres.length > 0) {
+            result.push({ id: 'genres', type: 'genres', data: selectedGenres });
         }
 
         if (filteredSongs.length > 0 || loadingLatestDrops) {
@@ -723,10 +753,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
 
         if (playlists.length > 0 || loadingPlaylists) {
             result.push({ id: 'playlists', type: 'playlists', data: playlists });
-        }
-
-        if (featuredArtists.length > 0 || loadingFeaturedArtists) {
-            result.push({ id: 'artists', type: 'artists', data: featuredArtists });
         }
 
         if (newsData.length > 0 || loadingNews) {
@@ -800,9 +826,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                     return (
                         <View style={styles.section}>
                             {loadingTopStreamed && topStreamedSongs.length === 0 ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={styles.loadingText}>Memuat top streamed...</Text>
+                                <View style={styles.bestSongsScrollContent}>
+                                    <Skeleton width={normalize(200)} height={normalize(200)} borderRadius={normalize(10)} />
+                                    <View style={styles.bestSongsVerticalColumn}>
+                                        <Skeleton width={normalize(95)} height={normalize(95)} borderRadius={normalize(10)} />
+                                        <Skeleton width={normalize(95)} height={normalize(95)} borderRadius={normalize(10)} />
+                                    </View>
                                 </View>
                             ) : topStreamedSongs.length > 0 ? (
                                 <FlatList
@@ -884,7 +913,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                 case 'genres':
                     return (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Your vibe</Text>
+                            <Text style={styles.sectionTitle}>Your Vibes</Text>
                             {selectedGenres.length > 0 ? (
                                 <FlatList
                                     horizontal
@@ -912,11 +941,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                 case 'podcasts':
                     return (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Podcasts</Text>
+                            <Text style={styles.sectionTitle}>Podcast</Text>
                             {loadingPodcasts && podcasts.length === 0 ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={styles.loadingText}>Memuat podcasts...</Text>
+                                <View style={styles.podcastScrollContent}>
+                                    {[1, 2, 3].map(i => (
+                                        <View key={i} style={styles.podcastCard}>
+                                            <Skeleton width={normalize(120)} height={normalize(170)} borderRadius={normalize(16)} />
+                                            <Skeleton width={normalize(100)} height={normalize(14)} borderRadius={normalize(4)} style={{ marginTop: 8 }} />
+                                        </View>
+                                    ))}
                                 </View>
                             ) : podcasts.length > 0 ? (
                                 <FlatList
@@ -956,9 +989,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Music Video</Text>
                             {loadingMusicVideos && musicVideos.length === 0 ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={styles.loadingText}>Memuat music videos...</Text>
+                                <View style={styles.musicVideoScrollContent}>
+                                    {[1, 2, 3].map(i => (
+                                        <View key={i} style={styles.musicVideoCard}>
+                                            <Skeleton width={normalize(120)} height={normalize(120)} borderRadius={normalize(60)} />
+                                            <Skeleton width={normalize(80)} height={normalize(14)} borderRadius={normalize(4)} style={{ marginTop: 8 }} />
+                                        </View>
+                                    ))}
                                 </View>
                             ) : musicVideos.length > 0 ? (
                                 <FlatList
@@ -998,9 +1035,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Top 100</Text>
                             {loadingLatestDrops && latestDrops.length === 0 ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={styles.loadingText}>Memuat top 100...</Text>
+                                <View style={styles.top100ScrollContent}>
+                                    {[1, 2].map(i => (
+                                        <View key={i} style={styles.top100Column}>
+                                            {[1, 2, 3, 4].map(j => (
+                                                <Skeleton key={j} width={TOP_100_CARD_WIDTH} height={normalize(68)} borderRadius={normalize(12)} />
+                                            ))}
+                                        </View>
+                                    ))}
                                 </View>
                             ) : filteredSongs.length > 0 ? (
                                 <FlatList
@@ -1058,9 +1100,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Top playlists</Text>
                             {loadingPlaylists && playlists.length === 0 ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={styles.loadingText}>Memuat playlists...</Text>
+                                <View style={styles.playlistGrid}>
+                                    {[1, 2, 3, 4].map(i => (
+                                        <View key={i} style={[styles.playlistCard, { backgroundColor: 'transparent' }]}>
+                                            <Skeleton width="100%" height={normalize(120)} borderRadius={normalize(12)} />
+                                            <Skeleton width="80%" height={normalize(14)} borderRadius={normalize(4)} style={{ marginTop: 8 }} />
+                                        </View>
+                                    ))}
                                 </View>
                             ) : playlists.length > 0 ? (
                                 <View style={styles.playlistGrid}>
@@ -1089,11 +1135,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                 case 'artists':
                     return (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Featured artists</Text>
+                            <Text style={styles.sectionTitle}>Artist</Text>
                             {loadingFeaturedArtists && featuredArtists.length === 0 ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={styles.loadingText}>Memuat featured artists...</Text>
+                                <View style={styles.artistRowScrollContent}>
+                                    {[1, 2, 3, 4, 5].map(i => (
+                                        <View key={i} style={styles.artistItem}>
+                                            <Skeleton width={normalize(64)} height={normalize(64)} borderRadius={normalize(32)} />
+                                            <Skeleton width={normalize(50)} height={normalize(12)} borderRadius={normalize(4)} style={{ marginTop: 8 }} />
+                                        </View>
+                                    ))}
                                 </View>
                             ) : featuredArtists.length > 0 ? (
                                 <FlatList
@@ -1128,9 +1178,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                 </TouchableOpacity>
                             </View>
                             {loadingNews && newsData.length === 0 ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={styles.loadingText}>Memuat news...</Text>
+                                <View style={styles.newsList}>
+                                    {[1, 2].map(i => (
+                                        <Skeleton key={i} width="100%" height={normalize(100)} borderRadius={normalize(14)} />
+                                    ))}
                                 </View>
                             ) : newsData.length > 0 ? (
                                 <View style={styles.newsList}>
@@ -1206,14 +1257,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                         progressBackgroundColor={COLORS.purple}
                     />
                 }
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={2}
-                windowSize={3}
-                initialNumToRender={2}
-                updateCellsBatchingPeriod={100}
+                removeClippedSubviews={Platform.OS === 'android'}
+                maxToRenderPerBatch={5}
+                windowSize={5}
+                initialNumToRender={4}
+                updateCellsBatchingPeriod={50}
                 getItemLayout={(data, index) => ({
-                    length: normalize(300), // Approximate height
-                    offset: normalize(300) * index,
+                    length: normalize(320), // Approximate average height of sections
+                    offset: normalize(320) * index,
                     index,
                 })}
             />
@@ -1524,39 +1575,32 @@ const styles = StyleSheet.create({
         gap: normalize(10),
     },
     newsCard: {
-        borderRadius: normalize(14),
-        padding: normalize(14),
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
-        gap: normalize(6),
+        flexDirection: 'row',
+        borderRadius: normalize(12),
+        overflow: 'hidden',
+        backgroundColor: '#1a1a1a',
+        gap: normalize(12),
     },
-    newsCardBackgroundImage: {
-        borderRadius: normalize(14),
-    },
-    newsCardOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.45)',
-        borderRadius: normalize(14),
+    newsCardThumbnail: {
+        width: normalize(120),
+        height: normalize(90),
+        backgroundColor: '#222',
     },
     newsCardContent: {
+        flex: 1,
+        justifyContent: 'center',
         gap: normalize(6),
-    },
-    newsMetaRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: normalize(4),
-    },
-    newsDate: {
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: normalize(11),
+        paddingVertical: normalize(12),
+        paddingRight: normalize(12),
     },
     newsTitle: {
         color: '#fff',
         fontWeight: '600',
-        fontSize: normalize(14),
+        fontSize: normalize(15),
+        lineHeight: normalize(20),
     },
-    newsSummary: {
-        color: 'rgba(255,255,255,0.7)',
+    newsDate: {
+        color: 'rgba(255,255,255,0.5)',
         fontSize: normalize(12),
     },
     musicVideoScrollContent: {
@@ -1570,8 +1614,8 @@ const styles = StyleSheet.create({
     },
     musicVideoCover: {
         width: normalize(120),
-        height: normalize(120),
-        borderRadius: normalize(60),
+        height: normalize(170),
+        borderRadius: normalize(16),
         backgroundColor: '#222',
     },
     musicVideoTitle: {

@@ -24,6 +24,7 @@ import Video, { VideoRef } from 'react-native-video';
 import { COLORS } from '../../config/color';
 import { getApiInstance } from '../../utils/api';
 import { useToast } from '../../components/Toast';
+import { usePlayer } from '../../components/Player';
 
 const FALLBACK_COVER =
   'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -65,22 +66,38 @@ type PodcastData = {
   deleted_at: string | null;
 };
 
+type Episode = {
+  id: number;
+  title: string;
+  episode_number: number;
+  season: number;
+  duration: string;
+  release_date: string | null;
+  description: string;
+  video_url: string;
+};
+
 const PodcastDetailScreen: React.FC = () => {
   const navigation = useNavigation<PodcastDetailNavigationProp>();
   const route = useRoute<PodcastDetailRouteProp>();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { pause: pauseBackgroundMusic } = usePlayer();
 
   const { id } = route.params;
 
   const [podcastData, setPodcastData] = useState<PodcastData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [loadingEpisodes, setLoadingEpisodes] = useState(true);
+  const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [isLiked, setIsLiked] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(0); // Track playback position
+  const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
   const videoRef = useRef<VideoRef>(null);
   const fullscreenVideoRef = useRef<VideoRef>(null);
 
@@ -139,21 +156,67 @@ const PodcastDetailScreen: React.FC = () => {
     }
   }, [id, showToast]);
 
+  const fetchEpisodes = useCallback(async () => {
+    try {
+      setLoadingEpisodes(true);
+      const api = await getApiInstance();
+      const response = await api.get(`/api/podcasts/${id}/episodes`);
+
+      if (response.data?.success && response.data?.data) {
+        setEpisodes(response.data.data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching episodes:', error);
+      // If episodes endpoint doesn't exist, create a single episode from podcast data
+      if (podcastData) {
+        setEpisodes([{
+          id: podcastData.id,
+          title: podcastData.title,
+          episode_number: podcastData.episode_number || 1,
+          season: podcastData.season,
+          duration: podcastData.duration,
+          release_date: podcastData.release_date,
+          description: podcastData.description,
+          video_url: podcastData.video_url,
+        }]);
+      }
+    } finally {
+      setLoadingEpisodes(false);
+    }
+  }, [id, podcastData, showToast]);
+
   useEffect(() => {
     fetchPodcastDetail();
   }, [fetchPodcastDetail]);
 
-  const handlePlayPause = () => {
-    if (!podcastData) return;
+  useEffect(() => {
+    if (podcastData) {
+      fetchEpisodes();
+    }
+  }, [podcastData, fetchEpisodes]);
 
-    const videoUrl = podcastData.video_url;
-    const podcastTitle = podcastData.title || route.params.title || 'Podcast';
+  const handlePlayPause = (episode?: Episode) => {
+    const episodeToPlay = episode || currentEpisode || (podcastData ? {
+      id: podcastData.id,
+      title: podcastData.title,
+      episode_number: podcastData.episode_number || 1,
+      season: podcastData.season,
+      duration: podcastData.duration,
+      release_date: podcastData.release_date,
+      description: podcastData.description,
+      video_url: podcastData.video_url,
+    } : null);
+
+    if (!episodeToPlay) return;
+
+    const videoUrl = episodeToPlay.video_url;
+    const episodeTitle = episodeToPlay.title || 'Podcast';
 
     // Cek apakah video_url ada dan tidak kosong
     if (!videoUrl || videoUrl.trim() === '') {
       Alert.alert(
         'Video Tidak Tersedia',
-        `Video untuk podcast "${podcastTitle}" tidak tersedia saat ini.\n\nSilakan coba lagi nanti.`,
+        `Video untuk "${episodeTitle}" tidak tersedia saat ini.\n\nSilakan coba lagi nanti.`,
         [
           {
             text: 'OK',
@@ -164,7 +227,18 @@ const PodcastDetailScreen: React.FC = () => {
       return;
     }
 
-    setIsPlaying(!isPlaying);
+    // If playing a new episode, reset playback
+    if (episode && episode.id !== currentEpisode?.id) {
+      setCurrentEpisode(episode);
+      setIsPlaying(true);
+      setCurrentTime(0);
+    } else {
+      setIsPlaying(!isPlaying);
+    }
+
+    if (!isPlaying || episode) {
+      pauseBackgroundMusic();
+    }
     setShowControls(true);
   };
 
@@ -326,7 +400,7 @@ const PodcastDetailScreen: React.FC = () => {
                     <>
                       <TouchableOpacity
                         style={styles.playPauseButton}
-                        onPress={handlePlayPause}
+                        onPress={() => handlePlayPause()}
                         activeOpacity={0.8}>
                         <FontAwesome6
                           name={isPlaying ? "pause" : "play"}
@@ -431,53 +505,95 @@ const PodcastDetailScreen: React.FC = () => {
             )}
           </View>
 
-          {/* Episodes List - Menampilkan podcast sebagai episode tunggal jika tidak ada episode list */}
+          {/* Episodes List */}
           <View style={styles.episodesContainer}>
-            <Text style={styles.episodesTitle}>Episode Info</Text>
-            <View style={styles.episodesList}>
-              <View style={styles.episodeCard}>
-                <View style={styles.episodeNumber}>
-                  <Text style={styles.episodeNumberText}>
-                    {podcastData.episode_number || '1'}
-                  </Text>
-                </View>
-                <View style={styles.episodeInfo}>
-                  <Text style={styles.episodeTitle} numberOfLines={2}>
-                    {podcastData.title}
-                  </Text>
-                  <Text style={styles.episodeDescription} numberOfLines={3}>
-                    {podcastData.description || 'Tidak ada deskripsi tersedia.'}
-                  </Text>
-                  <View style={styles.episodeMeta}>
-                    <Text style={styles.episodeMetaText}>{formattedDuration}</Text>
-                    {podcastData.release_date && (
-                      <>
-                        <Text style={styles.episodeMetaText}>•</Text>
-                        <Text style={styles.episodeMetaText}>
-                          {formatDate(podcastData.release_date)}
-                        </Text>
-                      </>
-                    )}
-                    {podcastData.season && (
-                      <>
-                        <Text style={styles.episodeMetaText}>•</Text>
-                        <Text style={styles.episodeMetaText}>Season {podcastData.season}</Text>
-                      </>
-                    )}
-                  </View>
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={styles.episodePlayButton}
-                  onPress={handlePlayPause}>
-                  <FontAwesome6
-                    name={isPlaying ? "pause" : "play"}
-                    size={16}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
+            <Text style={styles.episodesTitle}>Episode List</Text>
+            {loadingEpisodes && episodes.length === 0 ? (
+              <View style={styles.episodesList}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Memuat episode...</Text>
               </View>
-            </View>
+            ) : episodes.length > 0 ? (
+              <>
+                {/* Season selector if multiple seasons */}
+                {episodes.some(ep => ep.season !== episodes[0].season) && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.seasonSelector}
+                    contentContainerStyle={styles.seasonSelectorContent}
+                  >
+                    {Array.from(new Set(episodes.map(ep => ep.season))).sort().map(season => (
+                      <TouchableOpacity
+                        key={season}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.seasonButton,
+                          selectedSeason === season && styles.seasonButtonActive
+                        ]}
+                        onPress={() => setSelectedSeason(season)}
+                      >
+                        <Text style={[
+                          styles.seasonButtonText,
+                          selectedSeason === season && styles.seasonButtonTextActive
+                        ]}>
+                          Season {season}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+
+                <View style={styles.episodesList}>
+                  {episodes
+                    .filter(ep => ep.season === selectedSeason)
+                    .sort((a, b) => (b.episode_number || 0) - (a.episode_number || 0))
+                    .map((episode) => (
+                      <View key={episode.id} style={styles.episodeCard}>
+                        <View style={styles.episodeNumber}>
+                          <Text style={styles.episodeNumberText}>
+                            {episode.episode_number || '1'}
+                          </Text>
+                        </View>
+                        <View style={styles.episodeInfo}>
+                          <Text style={styles.episodeTitle} numberOfLines={2}>
+                            {episode.title}
+                          </Text>
+                          <Text style={styles.episodeDescription} numberOfLines={2}>
+                            {episode.description || 'Tidak ada deskripsi tersedia.'}
+                          </Text>
+                          <View style={styles.episodeMeta}>
+                            <Text style={styles.episodeMetaText}>{formatDuration(episode.duration)}</Text>
+                            {episode.release_date && (
+                              <>
+                                <Text style={styles.episodeMetaText}>•</Text>
+                                <Text style={styles.episodeMetaText}>
+                                  {formatDate(episode.release_date)}
+                                </Text>
+                              </>
+                            )}
+                          </View>
+                        </View>
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          style={styles.episodePlayButton}
+                          onPress={() => handlePlayPause(episode)}
+                        >
+                          <FontAwesome6
+                            name={currentEpisode?.id === episode.id && isPlaying ? "pause" : "play"}
+                            size={16}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                </View>
+              </>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Tidak ada episode tersedia</Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -532,7 +648,7 @@ const PodcastDetailScreen: React.FC = () => {
                   </View>
                   <View style={styles.fullscreenPlayPauseButton}>
                     <TouchableOpacity
-                      onPress={handlePlayPause}
+                      onPress={() => handlePlayPause()}
                       activeOpacity={0.8}>
                       <FontAwesome6
                         name={isPlaying ? "pause" : "play"}
@@ -695,6 +811,37 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: normalize(14),
     lineHeight: normalize(22),
+  },
+  seasonSelector: {
+    marginBottom: normalize(12),
+  },
+  seasonSelectorContent: {
+    gap: normalize(8),
+  },
+  seasonButton: {
+    paddingHorizontal: normalize(20),
+    paddingVertical: normalize(10),
+    borderRadius: normalize(20),
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  seasonButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  seasonButtonText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(14),
+    fontWeight: '600',
+  },
+  seasonButtonTextActive: {
+    color: '#fff',
+  },
+  emptyContainer: {
+    padding: normalize(20),
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: normalize(14),
   },
   episodesContainer: {
     gap: normalize(16),

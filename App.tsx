@@ -1,4 +1,4 @@
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StatusBar } from 'react-native';
@@ -33,6 +33,8 @@ import {
 } from './src/storage/userStorage';
 import { clearToken } from './src/storage/tokenStorage';
 import { resetApiInstance } from './src/utils/api';
+import { navigationRef } from './src/utils/navigationService';
+import ArtistDetailScreen from './src/screens/ArtistDetail';
 
 type RootStackParamList = {
   Splash: undefined;
@@ -74,6 +76,11 @@ type RootStackParamList = {
     playlistName?: string;
     playlistCover?: string;
   };
+  ArtistDetail: {
+    id: number;
+    name: string;
+    image: string | null;
+  };
   Profile: undefined;
 };
 
@@ -82,8 +89,6 @@ enableScreens(true);
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function App() {
-  const navigationRef =
-    useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [navReady, setNavReady] = useState(false);
   const navigationStateChangeRef = useRef<((routeName: string | null) => void) | null>(null);
@@ -107,7 +112,7 @@ function App() {
     // Only auto-navigate if not on Splash screen
     const state = navigationRef.current?.getRootState();
     const currentRoute = state?.routes[state?.index || 0]?.name;
-    
+
     if (currentRoute === 'Splash') {
       // Don't navigate away from Splash - let it handle navigation itself
       return;
@@ -219,7 +224,7 @@ function App() {
                             {
                               name:
                                 userProfile.selectedGenres &&
-                                userProfile.selectedGenres.length
+                                  userProfile.selectedGenres.length
                                   ? 'Home'
                                   : 'Genres',
                             },
@@ -286,105 +291,113 @@ function App() {
                     )
                   }
                 </Stack.Screen>
-              <Stack.Screen
-                name="FullPlayer"
-                component={FullPlayerScreen}
-                options={{
-                  presentation: 'fullScreenModal',
-                  animation: 'slide_from_bottom',
-                }}
-              />
-              <Stack.Screen
-                name="MusicVideoDetail"
-                component={MusicVideoDetailScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="PodcastDetail"
-                component={PodcastDetailScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="About"
-                component={AboutScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="Help"
-                component={HelpScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="EditProfile"
-                component={EditProfileScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="News"
-                component={NewsScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="NewsDetail"
-                component={NewsDetailScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="MusicGenre"
-                component={MusicGenreScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="PlaylistSongs"
-                component={PlaylistSongsScreen}
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen name="Profile">
-                {props =>
-                  profile ? (
-                    <ProfileScreen
-                      {...props}
-                      profile={profile}
-                      onLogout={() => {
-                        handleLogout();
-                        props.navigation.reset({
-                          index: 0,
-                          routes: [{ name: 'Welcome' }],
-                        });
-                      }}
-                      onProfileUpdate={handleProfileUpdate}
-                    />
-                  ) : null
-                }
-              </Stack.Screen>
-            </Stack.Navigator>
+                <Stack.Screen
+                  name="FullPlayer"
+                  component={FullPlayerScreen}
+                  options={{
+                    presentation: 'fullScreenModal',
+                    animation: 'slide_from_bottom',
+                  }}
+                />
+                <Stack.Screen
+                  name="MusicVideoDetail"
+                  component={MusicVideoDetailScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="PodcastDetail"
+                  component={PodcastDetailScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="About"
+                  component={AboutScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="Help"
+                  component={HelpScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="EditProfile"
+                  component={EditProfileScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="News"
+                  component={NewsScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="NewsDetail"
+                  component={NewsDetailScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="MusicGenre"
+                  component={MusicGenreScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="PlaylistSongs"
+                  component={PlaylistSongsScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="ArtistDetail"
+                  component={ArtistDetailScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen name="Profile">
+                  {props =>
+                    profile ? (
+                      <ProfileScreen
+                        {...props}
+                        profile={profile}
+                        onLogout={() => {
+                          handleLogout();
+                          props.navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'Welcome' }],
+                          });
+                        }}
+                        onProfileUpdate={handleProfileUpdate}
+                      />
+                    ) : null
+                  }
+                </Stack.Screen>
+              </Stack.Navigator>
             </NavigationContainer>
           </PlayerProvider>
         </PlaylistProvider>
