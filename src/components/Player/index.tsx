@@ -20,6 +20,7 @@ import {
   PanResponder,
 } from 'react-native';
 import Sound from 'react-native-sound';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-expect-error: FontAwesome6 lacks bundled types.
@@ -29,6 +30,9 @@ import MusicControl from 'react-native-music-control';
 
 import { COLORS } from '../../config/color';
 import { Song, SONGS } from '../../storage/songs';
+import { getApiInstance } from '../../utils/api';
+
+const PLAY_COUNT_STORAGE_KEY = '@soundcave:song_play_counts';
 
 type PlayerState = {
   currentSong: Song | null;
@@ -94,6 +98,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   const isPlayingSongRef = useRef<boolean>(false); // Flag to prevent duplicate playSong calls
   const playlistQueueRef = useRef<Song[]>([]); // Queue untuk menyimpan playlist yang sedang diputar
   const playSongRef = useRef<((song: Song, playlist?: Song[]) => void) | null>(null); // Ref to playSong function
+  const trackedSongsRef = useRef<Set<number>>(new Set()); // Tracked songs in current session to avoid re-checks
 
   // Update full player visibility when route changes
   useEffect(() => {
@@ -142,6 +147,48 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       }
     };
   }, [playerState.isPlaying, playerState.currentSong]);
+
+  // Handle play count increment logic
+  useEffect(() => {
+    const checkAndIncrementPlayCount = async () => {
+      const { currentSong, currentTime } = playerState;
+
+      // Rule: At least 2 minutes (120 seconds) of playback and has an ID
+      if (currentSong?.id && currentTime >= 120 && !trackedSongsRef.current.has(currentSong.id)) {
+        try {
+          // Mark as tracked for this session immediately to prevent multiple checks
+          trackedSongsRef.current.add(currentSong.id);
+
+          const storedCounts = await AsyncStorage.getItem(PLAY_COUNT_STORAGE_KEY);
+          const playCounts = storedCounts ? JSON.parse(storedCounts) : {};
+          const now = Date.now();
+          const lastUpdate = playCounts[currentSong.id] || 0;
+
+          // Rule: 1 account can increase play_count for every 24 hours (86400000 ms)
+          if (now - lastUpdate >= 24 * 60 * 60 * 1000) {
+            console.log(`Incrementing play count for song ${currentSong.id}: ${currentSong.title}`);
+            const api = await getApiInstance();
+            await api.put(`/api/musics/${currentSong.id}`, {
+              play_count: 1
+            });
+
+            // Save new timestamp
+            playCounts[currentSong.id] = now;
+            await AsyncStorage.setItem(PLAY_COUNT_STORAGE_KEY, JSON.stringify(playCounts));
+          } else {
+            console.log(`Play count already incremented for song ${currentSong.id} within 24 hours.`);
+          }
+        } catch (error) {
+          console.error('Error handling play count increment:', error);
+          // Don't retry in same session if it failed due to API/Storage but we reached the threshold
+        }
+      }
+    };
+
+    if (playerState.isPlaying) {
+      checkAndIncrementPlayCount();
+    }
+  }, [playerState.currentTime, playerState.currentSong, playerState.isPlaying]);
 
   // Initialize MusicControl and setup event listeners
   useEffect(() => {

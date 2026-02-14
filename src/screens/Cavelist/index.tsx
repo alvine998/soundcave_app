@@ -670,7 +670,7 @@ const CavelistScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     width: SCREEN_WIDTH,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
   },
   video: {
     width: '100%',

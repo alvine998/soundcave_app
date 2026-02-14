@@ -545,13 +545,13 @@ const styles = StyleSheet.create({
   videoContainer: {
     width: SCREEN_WIDTH,
     height: VIDEO_HEIGHT,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
     position: 'relative',
   },
   video: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -11,6 +11,7 @@ export const COLORS = {
   primaryText: '#FFFFFF',
   secondaryText: '#000000',
   successText: '#008000',
-  purple: '#000000',
+  background: '#100B14',
+  purple: '#100B14',
   purpleLight: '#620082',
 };

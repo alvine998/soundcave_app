@@ -702,13 +702,13 @@ const styles = StyleSheet.create({
   playerContainer: {
     width: SCREEN_WIDTH,
     height: COVER_HEIGHT,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
     position: 'relative',
   },
   playerCover: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
   },
   coverOverlay: {
     ...StyleSheet.absoluteFillObject,

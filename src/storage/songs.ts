@@ -77,4 +77,12 @@ export const SONGS = [
   },
 ] as const;
 
-export type Song = (typeof SONGS)[number];
+export type Song = {
+  id?: number;
+  artist: string;
+  title: string;
+  url: string;
+  time: string;
+  cover: string;
+  lyrics: string;
+};

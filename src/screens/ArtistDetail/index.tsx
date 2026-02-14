@@ -25,6 +25,14 @@ import { getApiInstance } from '../../utils/api';
 import { usePlayer } from '../../components/Player';
 import { Song } from '../../storage/songs';
 
+type Album = {
+    id: number;
+    name: string;
+    cover_image: string | null;
+    release_date: string | null;
+    artist_id: number;
+};
+
 type RootStackParamList = {
     ArtistDetail: {
         id: number;
@@ -54,13 +62,16 @@ const ArtistDetailScreen: React.FC = () => {
     const { id, name, image } = route.params;
 
     const [songs, setSongs] = useState<Song[]>([]);
+    const [albums, setAlbums] = useState<Album[]>([]);
     const [artistData, setArtistData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [loadingAlbums, setLoadingAlbums] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
 
     const mapApiDataToSong = useCallback((apiData: any): Song => {
         return {
+            id: apiData.id,
             artist: apiData.artist?.name || apiData.artist_name || name || 'Unknown Artist',
             title: apiData.title || apiData.name || 'Unknown Title',
             url:
@@ -84,6 +95,7 @@ const ArtistDetailScreen: React.FC = () => {
     const fetchArtistData = useCallback(async () => {
         try {
             setLoading(true);
+            setLoadingAlbums(true);
             const api = await getApiInstance();
 
             // Fetch artist details
@@ -93,19 +105,33 @@ const ArtistDetailScreen: React.FC = () => {
             }
 
             // Fetch artist tracks
-            const songsResponse = await api.get(`/api/artists/${id}/songs`);
-            const data = songsResponse.data?.data || songsResponse.data || [];
+            const songsResponse = await api.get(`/api/musics?page=1&limit=10&artist_id=${encodeURIComponent(id)}`);
+            const songsData = songsResponse.data?.data || songsResponse.data || [];
 
-            if (Array.isArray(data)) {
-                const mappedSongs = data.map(mapApiDataToSong).filter(s => s.url);
+            if (Array.isArray(songsData)) {
+                const mappedSongs = songsData.map(mapApiDataToSong).filter(s => s.url);
                 setSongs(mappedSongs);
             }
+
+            // Fetch artist albums
+            try {
+                const albumsResponse = await api.get(`/api/albums?artist_id=${id}`);
+                const albumsData = albumsResponse.data?.data || albumsResponse.data || [];
+                if (Array.isArray(albumsData)) {
+                    setAlbums(albumsData);
+                }
+            } catch (albumError) {
+                console.error('Error fetching albums:', albumError);
+                setAlbums([]);
+            }
+
         } catch (error: any) {
             console.error('Error fetching artist data:', error);
-            // Fallback or empty state
             setSongs([]);
+            setAlbums([]);
         } finally {
             setLoading(false);
+            setLoadingAlbums(false);
             setRefreshing(false);
         }
     }, [id, mapApiDataToSong]);
@@ -136,6 +162,24 @@ const ArtistDetailScreen: React.FC = () => {
             });
         }
     };
+
+    const renderAlbumItem = ({ item }: { item: Album }) => (
+        <TouchableOpacity style={styles.albumCard} activeOpacity={0.8}>
+            <Image
+                source={{ uri: item.cover_image || FALLBACK_SONG_COVER }}
+                style={styles.albumCover}
+                resizeMode="cover"
+            />
+            <Text style={styles.albumName} numberOfLines={1}>
+                {item.name}
+            </Text>
+            {item.release_date && (
+                <Text style={styles.albumDate}>
+                    {new Date(item.release_date).getFullYear()}
+                </Text>
+            )}
+        </TouchableOpacity>
+    );
 
     const renderSongItem = ({ item, index }: { item: Song; index: number }) => {
         const isActive = currentSong?.url === item.url && isPlaying;
@@ -214,6 +258,24 @@ const ArtistDetailScreen: React.FC = () => {
         </View>
     );
 
+    const renderFooter = () => (
+        <View style={styles.footerContainer}>
+            {albums.length > 0 && (
+                <>
+                    <Text style={styles.sectionTitle}>Albums</Text>
+                    <FlatList
+                        data={albums}
+                        renderItem={renderAlbumItem}
+                        keyExtractor={(item) => `album-${item.id}`}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.albumListContent}
+                    />
+                </>
+            )}
+        </View>
+    );
+
     return (
         <View style={styles.container}>
             <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
@@ -230,6 +292,7 @@ const ArtistDetailScreen: React.FC = () => {
                 data={songs}
                 renderItem={renderSongItem}
                 ListHeaderComponent={renderHeader}
+                ListFooterComponent={renderFooter}
                 keyExtractor={(item, index) => item.url || `song-${index}`}
                 contentContainerStyle={[
                     styles.listContent,
@@ -264,7 +327,7 @@ const ArtistDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: COLORS.background,
     },
     stickyBackButton: {
         position: 'absolute',
@@ -416,6 +479,41 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.4)',
         fontSize: normalize(14),
         fontStyle: 'italic',
+    },
+    footerContainer: {
+        paddingBottom: normalize(20),
+        marginTop: normalize(10),
+    },
+    sectionTitle: {
+        color: '#fff',
+        fontSize: normalize(20),
+        fontWeight: '700',
+        paddingHorizontal: normalize(20),
+        marginBottom: normalize(15),
+    },
+    albumListContent: {
+        paddingHorizontal: normalize(20),
+        gap: normalize(15),
+    },
+    albumCard: {
+        width: normalize(140),
+    },
+    albumCover: {
+        width: normalize(140),
+        height: normalize(140),
+        borderRadius: normalize(8),
+        backgroundColor: '#222',
+    },
+    albumName: {
+        color: '#fff',
+        fontSize: normalize(14),
+        fontWeight: '600',
+        marginTop: normalize(8),
+    },
+    albumDate: {
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: normalize(12),
+        marginTop: normalize(2),
     },
 });
 

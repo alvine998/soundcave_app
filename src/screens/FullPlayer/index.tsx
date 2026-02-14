@@ -196,10 +196,10 @@ const FullPlayerScreen: React.FC = () => {
               <Text style={styles.lyricsText}>
                 {currentSong.lyrics
                   ? currentSong.lyrics
-                      .split('\n')
-                      .map(line => line.trim())
-                      .filter(line => line.length > 0)
-                      .join('\n')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .join('\n')
                   : 'No lyrics available for this song.'}
               </Text>
             </View>
@@ -213,7 +213,7 @@ const FullPlayerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
   },
   backgroundImage: {
     flex: 1,

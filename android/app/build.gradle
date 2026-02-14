@@ -82,8 +82,8 @@ android {
         applicationId "com.soundcave_app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 19
-        versionName "1.20"
+        versionCode 21
+        versionName "1.22"
         // Image Crop Picker configuration
         vectorDrawables.useSupportLibrary = true
     }
