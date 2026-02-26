@@ -31,6 +31,7 @@ import MusicControl from 'react-native-music-control';
 import { COLORS } from '../../config/color';
 import { Song, SONGS } from '../../storage/songs';
 import { getApiInstance } from '../../utils/api';
+import { trackStream } from '../../utils/streamUtils';
 
 const PLAY_COUNT_STORAGE_KEY = '@soundcave:song_play_counts';
 
@@ -99,6 +100,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   const playlistQueueRef = useRef<Song[]>([]); // Queue untuk menyimpan playlist yang sedang diputar
   const playSongRef = useRef<((song: Song, playlist?: Song[]) => void) | null>(null); // Ref to playSong function
   const trackedSongsRef = useRef<Set<number>>(new Set()); // Tracked songs in current session to avoid re-checks
+  const sessionTrackedStreamRef = useRef<Set<number>>(new Set()); // Tracked streams in current session to avoid re-checks for 90s rule
 
   // Update full player visibility when route changes
   useEffect(() => {
@@ -187,6 +189,27 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
 
     if (playerState.isPlaying) {
       checkAndIncrementPlayCount();
+    }
+  }, [playerState.currentTime, playerState.currentSong, playerState.isPlaying]);
+
+  // Handle stream tracking logic (90 seconds)
+  useEffect(() => {
+    const handleStreamTracking = async () => {
+      const { currentSong, currentTime } = playerState;
+
+      // Rule: At least 90 seconds of playback and has an ID
+      if (currentSong?.id && currentTime >= 90 && !sessionTrackedStreamRef.current.has(currentSong.id)) {
+        console.log(`90s threshold reached for song ${currentSong.id}, tracking stream...`);
+        // Mark as session-tracked immediately
+        sessionTrackedStreamRef.current.add(currentSong.id);
+
+        // Use utility to handle 24h cooldown and API call
+        await trackStream('musics', currentSong.id);
+      }
+    };
+
+    if (playerState.isPlaying) {
+      handleStreamTracking();
     }
   }, [playerState.currentTime, playerState.currentSong, playerState.isPlaying]);
 

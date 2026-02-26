@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   FlatList,
   ImageBackground,
+  RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -41,7 +42,7 @@ const FALLBACK_SONG_COVER =
 type Genre = {
   id: string;
   name: string;
-  image?: string;
+  background?: string;
   color?: string;
 };
 
@@ -52,6 +53,7 @@ const SearchScreen = () => {
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { showToast } = useToast();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,11 +65,12 @@ const SearchScreen = () => {
   // Fungsi untuk mapping data dari API ke struktur Song
   const mapApiDataToSong = useCallback((apiData: any): Song => {
     return {
+      id: apiData.id,
       artist: apiData.artist || apiData.artist_name || 'Unknown Artist',
       title: apiData.title || apiData.name || 'Unknown Title',
       url: apiData.url || apiData.audio_url || apiData.audio || '',
       time: apiData.time || apiData.duration || apiData.length || '00:00',
-      cover: apiData.cover || apiData.image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
+      cover: apiData.cover || apiData.cover_image_url || apiData.image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
       lyrics: apiData.lyrics || '',
     };
   }, []);
@@ -110,15 +113,16 @@ const SearchScreen = () => {
           search: searchQuery.trim(),
         },
       });
-      
+
       // Handle berbagai format response API
       const data = response.data?.data || response.data || [];
-      
+      console.log(data, "song data");
+
       // Map data dari API ke struktur Song
       const mappedSongs: Song[] = Array.isArray(data)
         ? data.map(mapApiDataToSong)
         : [];
-      
+
       setSearchResults(mappedSongs);
     } catch (error: any) {
       console.error('Error searching music:', error);
@@ -135,6 +139,16 @@ const SearchScreen = () => {
       setSearching(false);
     }
   }, [mapApiDataToSong, showToast]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (query.trim()) {
+      await searchMusic(query);
+    } else {
+      await fetchGenres();
+    }
+    setRefreshing(false);
+  }, [query, searchMusic]);
 
   // Debounce search
   useEffect(() => {
@@ -234,9 +248,9 @@ const SearchScreen = () => {
         onPress={() => {
           navigation.navigate('MusicGenre', { genre: item.name });
         }}>
-        {item.image ? (
+        {item.background ? (
           <ImageBackground
-            source={{ uri: item.image }}
+            source={{ uri: item.background }}
             style={styles.genreCardBackground}
             imageStyle={styles.genreCardImage}>
             <View style={styles.genreCardOverlay} />
@@ -278,6 +292,14 @@ const SearchScreen = () => {
               contentContainerStyle={[styles.songList, { paddingBottom }]}
               showsVerticalScrollIndicator={false}
               renderItem={renderSongItem}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={COLORS.primary}
+                  colors={[COLORS.primary]}
+                />
+              }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>
@@ -290,24 +312,32 @@ const SearchScreen = () => {
         ) : (
           // Show genres when no search query
           loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          </View>
-        ) : (
-          <FlatList
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+          ) : (
+            <FlatList
               key="genres-list"
-            data={filteredGenres}
-            keyExtractor={item => item.id || item.name}
-            numColumns={2}
-            contentContainerStyle={[styles.genreGrid, { paddingBottom }]}
-            showsVerticalScrollIndicator={false}
-            renderItem={renderGenreItem}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
+              data={filteredGenres}
+              keyExtractor={item => item.id || item.name}
+              numColumns={2}
+              contentContainerStyle={[styles.genreGrid, { paddingBottom }]}
+              showsVerticalScrollIndicator={false}
+              renderItem={renderGenreItem}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={COLORS.primary}
+                  colors={[COLORS.primary]}
+                />
+              }
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>Tidak ada genres</Text>
-              </View>
-            }
-          />
+                </View>
+              }
+            />
           )
         )}
       </View>

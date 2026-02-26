@@ -50,7 +50,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
       });
 
       const responseData = response.data;
-      
+
       // Handle struktur response: { success, message, data: { token, user } }
       if (responseData.success && responseData.data) {
         const { token, user } = responseData.data;
@@ -87,12 +87,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           created_at: user.created_at || undefined,
           updated_at: user.updated_at || undefined,
         };
-        
+
         await saveUserProfile(userProfile);
 
-        showToast({ 
-          message: responseData.message || 'Login berhasil!', 
-          type: 'success' 
+        showToast({
+          message: responseData.message || 'Login berhasil!',
+          type: 'success'
         });
         onSuccess(userProfile);
       } else {
@@ -158,11 +158,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.85}>
+        {/* <TouchableOpacity activeOpacity={0.85}>
           <Text style={styles.secondaryText}>Forgot password?</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           activeOpacity={0.85}
           style={styles.googleButton}
           onPress={onGoogle}
@@ -174,7 +174,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             color="#EA4335"
           />
           <Text style={styles.googleText}>Login with Google</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity activeOpacity={0.85} onPress={onRegister}>
           <Text style={styles.switchText}>

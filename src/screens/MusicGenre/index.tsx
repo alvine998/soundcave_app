@@ -58,6 +58,7 @@ const MusicGenreScreen: React.FC = () => {
   // Fungsi untuk mapping data dari API ke struktur Song
   const mapApiDataToSong = useCallback((apiData: any): Song => {
     return {
+      id: apiData.id,
       artist: apiData.artist || apiData.artist_name || 'Unknown Artist',
       title: apiData.title || apiData.name || 'Unknown Title',
       url: apiData.url || apiData.audio_file_url || apiData.audio || '',

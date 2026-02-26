@@ -176,24 +176,25 @@ const BestSongCard = React.memo<{
             >
                 <BestSongCoverImage uri={song.cover} />
                 <View style={styles.bestSongOverlay}>
-                    <View style={styles.bestSongBadge}>
+                    {/* <View style={styles.bestSongBadge}>
                         <Text style={styles.bestSongRank}>#{rank}</Text>
-                    </View>
-                    <View style={styles.bestSongInfo}>
+                    </View> */}
+                    {/* <View style={styles.bestSongInfo}>
                         <Text style={styles.bestSongTitle} numberOfLines={1}>
                             {song.title}
                         </Text>
                         <Text style={styles.bestSongArtist} numberOfLines={1}>
                             {song.artist}
                         </Text>
-                    </View>
+                    </View> */}
                 </View>
             </TouchableOpacity>
         );
     },
     (prevProps, nextProps) => {
         return (
-            prevProps.song.url === nextProps.song.url &&
+            prevProps.song.id === nextProps.song.id &&
+            prevProps.song.cover === nextProps.song.cover &&
             prevProps.isActive === nextProps.isActive &&
             prevProps.rank === nextProps.rank
         );
@@ -287,7 +288,8 @@ const Top100Card = React.memo<{
     },
     (prevProps, nextProps) => {
         return (
-            prevProps.song.url === nextProps.song.url &&
+            prevProps.song.id === nextProps.song.id &&
+            prevProps.song.cover === nextProps.song.cover &&
             prevProps.isActive === nextProps.isActive
         );
     }
@@ -429,11 +431,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     // Mapping functions (memoized)
     const mapApiDataToSong = useCallback((apiData: any): Song => {
         return {
+            id: apiData.id,
             artist: apiData.artist || apiData.artist_name || 'Unknown Artist',
             title: apiData.title || apiData.name || 'Unknown Title',
             url: apiData.url || apiData.audio_file_url || apiData.audio || '',
             time: apiData.time || apiData.duration || apiData.length || '00:00',
-            cover: apiData.cover || apiData.cover_image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
+            cover: apiData.cover || apiData.cover_image_url || apiData.image_url || apiData.image || apiData.cover_image || FALLBACK_SONG_COVER,
             lyrics: apiData.lyrics || '',
         };
     }, []);
@@ -601,12 +604,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         }
     }, [mapApiDataToSong]);
 
+    // Grouping top streamed songs for the horizontal FlatList
+    const topStreamedGroups = useMemo(() => {
+        if (topStreamedSongs.length === 0) return [];
+        return [
+            { id: 'group-large', type: 'large', songs: topStreamedSongs.slice(0, 1) },
+            { id: 'group-col-1', type: 'column', songs: topStreamedSongs.slice(1, 3) },
+            { id: 'group-col-2', type: 'column', songs: topStreamedSongs.slice(3, 5) },
+        ];
+    }, [topStreamedSongs]);
+
     const fetchPlaylists = useCallback(async () => {
         try {
             setLoadingPlaylists(true);
             const api = await getApiInstance();
             const response = await api.get('/api/playlists', {
-                params: { page: 1, limit: 10, is_public: true },
+                params: { page: 1, limit: 10, is_public: true, user_id: 0 },
             });
 
             const data = response.data?.data || [];
@@ -710,7 +723,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
 
     const filteredSongs = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        const songsToFilter = latestDrops.length > 0 ? latestDrops : SONGS;
+        const songsToFilter: readonly Song[] = latestDrops.length > 0 ? latestDrops : SONGS;
         if (!query) {
             return songsToFilter;
         }
@@ -837,16 +850,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                 <FlatList
                                     horizontal
                                     showsHorizontalScrollIndicator={false}
-                                    data={[
-                                        { type: 'large', songs: topStreamedSongs.slice(0, 1) },
-                                        { type: 'column', songs: topStreamedSongs.slice(1, 3) },
-                                        { type: 'column', songs: topStreamedSongs.slice(3, 5) },
-                                    ]}
+                                    data={topStreamedGroups}
                                     renderItem={({ item: group }) => {
                                         if (group.type === 'large') {
                                             const song = group.songs[0];
                                             if (!song) return null;
-                                            const isActive = currentSong?.url === song.url && isPlaying;
+                                            const isActive = (currentSong as any)?.id === song.id;
                                             return (
                                                 <BestSongCard
                                                     song={song}
@@ -862,10 +871,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                                             return;
                                                         }
                                                         playSong(song, [...topStreamedSongs]);
-                                                        showToast({
-                                                            message: `Playing ${song.title}`,
-                                                            type: 'info',
-                                                        });
+                                                        // showToast({
+                                                        //     message: `Playing ${song.title}`,
+                                                        //     type: 'info',
+                                                        // });
                                                     }}
                                                 />
                                             );
@@ -874,7 +883,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                                 <View style={styles.bestSongsVerticalColumn}>
                                                     {group.songs.map((song, index) => {
                                                         const rank = group.songs === topStreamedSongs.slice(1, 3) ? index + 2 : index + 4;
-                                                        const isActive = currentSong?.url === song.url && isPlaying;
+                                                        const isActive = (currentSong as any)?.id === song.id;
                                                         return (
                                                             <BestSongCard
                                                                 key={song.url || `top-${rank}`}
@@ -884,10 +893,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                                                 isActive={isActive}
                                                                 onPress={() => {
                                                                     playSong(song, [...topStreamedSongs]);
-                                                                    showToast({
-                                                                        message: `Playing ${song.title}`,
-                                                                        type: 'info',
-                                                                    });
+                                                                    // showToast({
+                                                                    //     message: `Playing ${song.title}`,
+                                                                    //     type: 'info',
+                                                                    // });
                                                                 }}
                                                             />
                                                         );
@@ -896,11 +905,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                             );
                                         }
                                     }}
-                                    keyExtractor={(item, index) => `top-group-${index}`}
+                                    keyExtractor={(item) => item.id}
                                     contentContainerStyle={styles.bestSongsScrollContent}
-                                    removeClippedSubviews={true}
-                                    maxToRenderPerBatch={3}
-                                    windowSize={3}
+                                    removeClippedSubviews={false}
+                                    maxToRenderPerBatch={5}
+                                    windowSize={5}
+                                    initialNumToRender={3}
                                 />
                             ) : (
                                 <View style={styles.emptyContainer}>
@@ -1054,7 +1064,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                         return (
                                             <View style={styles.top100Column}>
                                                 {columnItems.map((song, itemIndex) => {
-                                                    const isActive = currentSong?.url === song.url && isPlaying;
+                                                    const isActive = !!(currentSong && (currentSong as any).id === song.id);
                                                     return (
                                                         <Top100Card
                                                             key={song.url || `song-${columnIndex * 4 + itemIndex}`}
@@ -1069,10 +1079,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                                                     return;
                                                                 }
                                                                 playSong(song, [...filteredSongs]);
-                                                                showToast({
-                                                                    message: `Playing ${song.title}`,
-                                                                    type: 'info',
-                                                                });
+                                                                // showToast({
+                                                                //     message: `Playing ${song.title}`,
+                                                                //     type: 'info',
+                                                                // });
                                                             }}
                                                         />
                                                     );
@@ -1219,7 +1229,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             loadingTopStreamed,
             topStreamedSongs,
             currentSong,
-            isPlaying,
             playSong,
             showToast,
             selectedGenres,
@@ -1343,6 +1352,8 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: '#111',
         position: 'relative',
+        borderWidth: 2,
+        borderColor: 'transparent',
     },
     bestSongCardLarge: {
         width: normalize(200),
@@ -1351,6 +1362,8 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: '#111',
         position: 'relative',
+        borderWidth: 2,
+        borderColor: 'transparent',
     },
     bestSongCardActive: {
         borderColor: COLORS.primary,
@@ -1434,9 +1447,9 @@ const styles = StyleSheet.create({
     top100Card: {
         borderRadius: normalize(12),
         overflow: 'hidden',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: '#111',
+        borderWidth: 2,
+        borderColor: 'transparent',
         flexDirection: 'row',
         gap: normalize(12),
         alignItems: 'center',
@@ -1445,7 +1458,7 @@ const styles = StyleSheet.create({
     },
     top100CardActive: {
         borderColor: COLORS.primary,
-        borderWidth: 2,
+        backgroundColor: 'rgba(255,255,255,0.05)',
     },
     top100Cover: {
         width: normalize(52),

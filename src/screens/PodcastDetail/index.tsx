@@ -25,6 +25,7 @@ import { COLORS } from '../../config/color';
 import { getApiInstance } from '../../utils/api';
 import { useToast } from '../../components/Toast';
 import { usePlayer } from '../../components/Player';
+import { trackStream } from '../../utils/streamUtils';
 
 const FALLBACK_COVER =
   'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -100,6 +101,7 @@ const PodcastDetailScreen: React.FC = () => {
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
   const videoRef = useRef<VideoRef>(null);
   const fullscreenVideoRef = useRef<VideoRef>(null);
+  const sessionTrackedStreamRef = useRef<Set<number>>(new Set()); // Tracked streams in current session
 
   // Format duration dari "42:15" ke "42 min"
   const formatDuration = (duration: string): string => {
@@ -317,6 +319,17 @@ const PodcastDetailScreen: React.FC = () => {
   // Handle video progress to track current playback position
   const handleProgress = (data: any) => {
     setCurrentTime(data.currentTime);
+
+    // Rule: At least 90 seconds of playback and has an ID
+    const currentId = currentEpisode?.id || (podcastData ? podcastData.id : null);
+    if (currentId && data.currentTime >= 90 && !sessionTrackedStreamRef.current.has(currentId)) {
+      console.log(`90s threshold reached for podcast ${currentId}, tracking stream...`);
+      // Mark as session-tracked immediately
+      sessionTrackedStreamRef.current.add(currentId);
+
+      // Use utility to handle 24h cooldown and API call
+      trackStream('podcasts', currentId);
+    }
   };
 
 

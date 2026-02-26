@@ -267,7 +267,12 @@ function App() {
                     )
                   }
                 </Stack.Screen>
-                <Stack.Screen name="Home">
+                <Stack.Screen
+                  name="Home"
+                  options={{
+                    navigationBarColor: 'transparent',
+                    navigationBarTranslucent: true,
+                  }}>
                   {props =>
                     profile ? (
                       <HomeTabs

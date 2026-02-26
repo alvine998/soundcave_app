@@ -68,6 +68,7 @@ const ArtistDetailScreen: React.FC = () => {
     const [loadingAlbums, setLoadingAlbums] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
+    const [followingLoading, setFollowingLoading] = useState(false);
 
     const mapApiDataToSong = useCallback((apiData: any): Song => {
         return {
@@ -101,7 +102,9 @@ const ArtistDetailScreen: React.FC = () => {
             // Fetch artist details
             const artistResponse = await api.get(`/api/artists/${id}`);
             if (artistResponse.data?.data) {
-                setArtistData(artistResponse.data.data);
+                const data = artistResponse.data.data;
+                setArtistData(data);
+                setIsFollowing(!!data.is_followed);
             }
 
             // Fetch artist tracks
@@ -145,12 +148,38 @@ const ArtistDetailScreen: React.FC = () => {
         fetchArtistData();
     }, [fetchArtistData]);
 
-    const handleFollow = () => {
-        setIsFollowing(!isFollowing);
-        showToast({
-            message: isFollowing ? `Unfollowed ${name}` : `Following ${name}`,
-            type: 'info',
-        });
+    const handleFollow = async () => {
+        if (!artistData || followingLoading) return;
+
+        try {
+            setFollowingLoading(true);
+            const api = await getApiInstance();
+            const action = isFollowing ? 'unfollow' : 'follow';
+
+            if (artistData.ref_user_id) {
+                // If artist has ref_user_id, hit /users/follow or /users/unfollow with target_user_id
+                await api.post(`/api/users/${action}`, {
+                    target_user_id: artistData.ref_user_id,
+                });
+            } else {
+                // If no ref_user_id, hit /artists/<id>/follow or /artists/<id>/unfollow
+                await api.post(`/api/artists/${id}/${action}`);
+            }
+
+            setIsFollowing(!isFollowing);
+            showToast({
+                message: isFollowing ? `Unfollowed ${name}` : `Following ${name}`,
+                type: 'success',
+            });
+        } catch (error: any) {
+            console.error('Error toggling follow:', error);
+            showToast({
+                message: error.response?.data?.message || 'Gagal mengubah status ikuti',
+                type: 'error',
+            });
+        } finally {
+            setFollowingLoading(false);
+        }
     };
 
     const handlePlayAll = () => {
@@ -237,10 +266,15 @@ const ArtistDetailScreen: React.FC = () => {
                     <TouchableOpacity
                         style={[styles.followButton, isFollowing && styles.followingButton]}
                         onPress={handleFollow}
+                        disabled={followingLoading}
                     >
-                        <Text style={styles.followButtonText}>
-                            {isFollowing ? 'Following' : 'Follow'}
-                        </Text>
+                        {followingLoading ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <Text style={styles.followButtonText}>
+                                {isFollowing ? 'Following' : 'Follow'}
+                            </Text>
+                        )}
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.iconButton}>
                         <FontAwesome6 name="bell" size={20} color="#fff" />

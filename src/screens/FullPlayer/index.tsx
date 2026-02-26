@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -18,9 +18,10 @@ import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 // @ts-ignore: @react-native-community/slider lacks bundled types.
 import Slider from '@react-native-community/slider';
 
+import AddToPlaylistModal from '../../components/AddToPlaylistModal';
 import { usePlayer } from '../../components/Player';
 import { COLORS } from '../../config/color';
-import { Song } from '../../storage/songs';
+import { getUserProfile } from '../../storage/userStorage';
 
 type RootStackParamList = {
   Welcome: undefined;
@@ -42,6 +43,14 @@ const FullPlayerScreen: React.FC = () => {
   const { currentSong, isPlaying, isLoading, currentTime, duration, pause, resume, nextSong, previousSong, seek } = usePlayer();
   const scrollY = useRef(new Animated.Value(0)).current;
   const [slidingTime, setSlidingTime] = useState<number | null>(null);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [userId, setUserId] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    getUserProfile().then(profile => {
+      if (profile?.id) setUserId(profile.id);
+    });
+  }, []);
 
   if (!currentSong) {
     return null;
@@ -99,8 +108,15 @@ const FullPlayerScreen: React.FC = () => {
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle}>Now Playing</Text>
             </View>
-            <TouchableOpacity style={styles.headerButton} activeOpacity={0.7}>
-              <FontAwesome6 name="ellipsis-vertical" size={20} color="#fff" />
+            <TouchableOpacity
+              style={styles.headerButton}
+              activeOpacity={0.7}
+              onPress={() => setShowPlaylistModal(true)}>
+              <FontAwesome6
+                name="circle-plus"
+                size={22}
+                color="#fff"
+              />
             </TouchableOpacity>
           </View>
 
@@ -181,14 +197,14 @@ const FullPlayerScreen: React.FC = () => {
             </View>
 
             {/* Additional Controls */}
-            <View style={styles.additionalControls}>
+            {/* <View style={styles.additionalControls}>
               <TouchableOpacity activeOpacity={0.7} style={styles.additionalButton}>
                 <FontAwesome6 name="shuffle" size={20} color="rgba(255,255,255,0.6)" />
               </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.7} style={styles.additionalButton}>
                 <FontAwesome6 name="repeat" size={20} color="rgba(255,255,255,0.6)" />
               </TouchableOpacity>
-            </View>
+            </View> */}
 
             {/* Lyrics */}
             <View style={styles.lyricsContainer}>
@@ -206,6 +222,13 @@ const FullPlayerScreen: React.FC = () => {
           </Animated.ScrollView>
         </View>
       </ImageBackground>
+
+      <AddToPlaylistModal
+        visible={showPlaylistModal}
+        onClose={() => setShowPlaylistModal(false)}
+        musicId={currentSong.id}
+        userId={userId}
+      />
     </View>
   );
 };

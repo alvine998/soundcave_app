@@ -53,13 +53,16 @@ const HomeTabs: React.FC<HomeTabsProps> = ({
           marginTop: route.name === 'Home' ? normalize(5) : 0,
           opacity: route.name === 'Home' ? 0 : 1,
         },
-        tabBarBackground: () => <View style={styles.tabBackground} />,
+        tabBarBackground: () => <View style={{ flex: 1, backgroundColor: 'transparent' }} />,
         tabBarStyle: {
           borderTopColor: 'transparent',
+          borderTopWidth: 0,
           height: tabBarHeight,
           position: 'absolute',
           elevation: 0,
-          backgroundColor: 'transparent',
+          backgroundColor: COLORS.purple,
+          shadowOpacity: 0,
+          shadowColor: 'transparent',
           paddingBottom: insets.bottom,
           marginTop: normalize(10),
         },
@@ -127,7 +130,8 @@ const getIconName = (route: string) => {
 const styles = StyleSheet.create({
   tabBackground: {
     flex: 1,
-    backgroundColor: 'rgba(40, 40, 40, 0.5)',
+    backgroundColor: COLORS.purple,
+    opacity: 0.5,
   },
   homeIconContainer: {
     borderRadius: normalize(999),

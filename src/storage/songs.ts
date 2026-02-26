@@ -1,5 +1,6 @@
-export const SONGS = [
+export const SONGS: readonly Song[] = [
   {
+    id: 1,
     artist: 'Zara Salsabila',
     title: 'Seperti Kemarin',
     // NOTE: This .mpeg file may not play on Android. Convert to .mp3 for better compatibility
@@ -40,6 +41,7 @@ export const SONGS = [
             Ku hanya ingin semua denganmu`,
   },
   {
+    id: 2,
     artist: 'Fani Fabianto',
     title: 'Telah Pergi',
     url: 'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FFani%20Fabianto%2FWhatsApp%20Audio%202025-11-22%20at%2011.12.06%20(2).mpeg?alt=media&token=dbb5307c-f15e-414a-8966-c386cfbf5e46',
@@ -49,6 +51,7 @@ export const SONGS = [
     lyrics: ``,
   },
   {
+    id: 3,
     artist: 'Original Soundcave',
     title: 'Track 01',
     url: 'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FUnknown%2FWhatsApp%20Audio%202025-11-22%20at%2011.12.07.mp3?alt=media&token=c4bbf0ec-f138-4563-8a5c-017d7d8549fb',
@@ -58,6 +61,7 @@ export const SONGS = [
     lyrics: ``,
   },
   {
+    id: 4,
     artist: 'Original Soundcave',
     title: 'Track 02',
     url: 'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FUnknown%2FWhatsApp%20Audio%202025-11-22%20at%2011.12.07%20(1).mpeg?alt=media&token=a033e2d6-7520-4240-be2e-359605c95cc1',
@@ -67,6 +71,7 @@ export const SONGS = [
     lyrics: ``,
   },
   {
+    id: 5,
     artist: 'Original Soundcave',
     title: 'Track 03',
     url: 'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FUnknown%2FWhatsApp%20Audio%202025-11-22%20at%2011.12.06%20(3).mpeg?alt=media&token=4b1e8a2b-881f-4a0c-a69a-e512d9e3f104',
@@ -75,7 +80,7 @@ export const SONGS = [
       'https://firebasestorage.googleapis.com/v0/b/tokotitoh-cd962.appspot.com/o/soundcave%2Fmusic%2Fsongs%2FUnknown%2FWhatsApp%20Image%202025-11-24%20at%2021.36.15%20(1).jpeg?alt=media&token=443eb6c3-6e4b-4809-a678-bc7104662f58',
     lyrics: ``,
   },
-] as const;
+];
 
 export type Song = {
   id?: number;

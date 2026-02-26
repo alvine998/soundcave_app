@@ -25,6 +25,7 @@ import { COLORS } from '../../config/color';
 import { getApiInstance } from '../../utils/api';
 import { useToast } from '../../components/Toast';
 import { usePlayer } from '../../components/Player';
+import { trackStream } from '../../utils/streamUtils';
 
 const FALLBACK_COVER =
   'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -84,6 +85,7 @@ const MusicVideoDetailScreen: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0); // Track playback position
   const videoRef = useRef<any>(null);
   const fullscreenVideoRef = useRef<any>(null);
+  const sessionTrackedStreamRef = useRef<Set<number>>(new Set()); // Tracked streams in current session
 
   // Format date dari ISO string ke format yang lebih readable
   const formatDate = (dateString: string | null): string => {
@@ -236,6 +238,16 @@ const MusicVideoDetailScreen: React.FC = () => {
   // Handle video progress to track current playback position
   const handleProgress = (data: any) => {
     setCurrentTime(data.currentTime);
+
+    // Rule: At least 90 seconds of playback and has an ID
+    if (musicVideoData?.id && data.currentTime >= 90 && !sessionTrackedStreamRef.current.has(musicVideoData.id)) {
+      console.log(`90s threshold reached for music video ${musicVideoData.id}, tracking stream...`);
+      // Mark as session-tracked immediately
+      sessionTrackedStreamRef.current.add(musicVideoData.id);
+
+      // Use utility to handle 24h cooldown and API call
+      trackStream('music-videos', musicVideoData.id);
+    }
   };
 
   if (loading) {
