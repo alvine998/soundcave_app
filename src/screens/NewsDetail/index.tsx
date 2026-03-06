@@ -91,7 +91,7 @@ const NewsDetailScreen: React.FC = () => {
       setLoading(true);
       const api = await getApiInstance();
       const response = await api.get(`/api/news/${id}`);
-      
+
       if (response.data?.success && response.data?.data) {
         setNewsData(response.data.data);
       } else {
@@ -200,7 +200,7 @@ const NewsDetailScreen: React.FC = () => {
         contentContainerStyle={[styles.scrollContent, { paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ padding: normalize(10), paddingHorizontal:normalize(20) }}>
+        <View style={{ padding: normalize(10), paddingHorizontal: normalize(20) }}>
           <Text style={styles.newsTitle}>{newsData.title}</Text>
           <View style={styles.metaRow}>
             {formattedDate && (
@@ -280,23 +280,23 @@ const styles = StyleSheet.create({
     gap: normalize(12),
     backgroundColor: COLORS.purple,
     padding: normalize(16),
-    paddingHorizontal:normalize(20),
+    paddingHorizontal: normalize(20),
     borderTopEndRadius: normalize(25),
     borderTopStartRadius: normalize(25),
     height: '100%',
   },
   newsDate: {
     color: COLORS.light,
-    fontSize: normalize(12),
+    fontSize: normalize(16),
   },
   newsTitle: {
     color: COLORS.light,
-    fontSize: normalize(22),
+    fontSize: normalize(26),
     fontWeight: '700',
   },
   newsBody: {
     color: COLORS.light,
-    fontSize: normalize(18),
+    fontSize: normalize(20),
     lineHeight: normalize(20),
   },
   emptyText: {
@@ -334,17 +334,17 @@ const styles = StyleSheet.create({
   },
   newsAuthor: {
     color: COLORS.light,
-    fontSize: normalize(12),
+    fontSize: normalize(16),
     opacity: 0.8,
   },
   newsCategory: {
     color: COLORS.light,
-    fontSize: normalize(12),
+    fontSize: normalize(16),
     opacity: 0.8,
   },
   newsViews: {
     color: COLORS.light,
-    fontSize: normalize(11),
+    fontSize: normalize(15),
     opacity: 0.6,
   },
   newsSummary: {
@@ -364,12 +364,12 @@ const styles = StyleSheet.create({
   },
   tagsLabel: {
     color: COLORS.light,
-    fontSize: normalize(14),
+    fontSize: normalize(16),
     fontWeight: '600',
   },
   tagsText: {
     color: COLORS.light,
-    fontSize: normalize(14),
+    fontSize: normalize(16),
     opacity: 0.8,
   },
 });

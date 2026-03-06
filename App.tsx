@@ -24,6 +24,7 @@ import NewsScreen from './src/screens/News';
 import NewsDetailScreen from './src/screens/NewsDetail';
 import MusicGenreScreen from './src/screens/MusicGenre';
 import PlaylistSongsScreen from './src/screens/PlaylistSongs';
+import AlbumSongsScreen from './src/screens/AlbumSongs';
 import ProfileScreen from './src/screens/Profile';
 import HomeTabs from './src/navigation/HomeTabs';
 import {
@@ -75,6 +76,11 @@ type RootStackParamList = {
     playlistId: number;
     playlistName?: string;
     playlistCover?: string;
+  };
+  AlbumSongs: {
+    albumId: number;
+    albumTitle: string;
+    albumImage: string | null;
   };
   ArtistDetail: {
     id: number;
@@ -371,6 +377,14 @@ function App() {
                 <Stack.Screen
                   name="PlaylistSongs"
                   component={PlaylistSongsScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="AlbumSongs"
+                  component={AlbumSongsScreen}
                   options={{
                     headerShown: false,
                     animation: 'slide_from_right',

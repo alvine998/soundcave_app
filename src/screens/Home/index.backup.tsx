@@ -729,10 +729,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                         return;
                       }
                       playSong(song);
-                      showToast({
-                        message: `Playing ${song.title}`,
-                        type: 'info',
-                      });
+                      // showToast({
+                      //   message: `Playing ${song.title}`,
+                      //   type: 'info',
+                      // });
                     }}
                   >
                     <BestSongCoverImage uri={song.cover} />
@@ -767,10 +767,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                       ]}
                       onPress={() => {
                         playSong(song);
-                        showToast({
-                          message: `Playing ${song.title}`,
-                          type: 'info',
-                        });
+                        // showToast({
+                        //   message: `Playing ${song.title}`,
+                        //   type: 'info',
+                        // });
                       }}
                     >
                       <BestSongCoverImage uri={song.cover} />
@@ -806,10 +806,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                       ]}
                       onPress={() => {
                         playSong(song);
-                        showToast({
-                          message: `Playing ${song.title}`,
-                          type: 'info',
-                        });
+                        // showToast({
+                        //   message: `Playing ${song.title}`,
+                        //   type: 'info',
+                        // });
                       }}
                     >
                       <BestSongCoverImage uri={song.cover} />
@@ -993,10 +993,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                               return;
                             }
                             playSong(song, [...filteredSongs]);
-                            showToast({
-                              message: `Playing ${song.title}`,
-                              type: 'info',
-                            });
+                            // showToast({
+                            //   message: `Playing ${song.title}`,
+                            //   type: 'info',
+                            // });
                           }}
                         >
                           <Image

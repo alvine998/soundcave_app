@@ -27,8 +27,8 @@ import { Song } from '../../storage/songs';
 
 type Album = {
     id: number;
-    name: string;
-    cover_image: string | null;
+    title: string;
+    image: string | null;
     release_date: string | null;
     artist_id: number;
 };
@@ -38,6 +38,11 @@ type RootStackParamList = {
         id: number;
         name: string;
         image: string | null;
+    };
+    AlbumSongs: {
+        albumId: number;
+        albumTitle: string;
+        albumImage: string | null;
     };
 };
 
@@ -185,22 +190,32 @@ const ArtistDetailScreen: React.FC = () => {
     const handlePlayAll = () => {
         if (songs.length > 0) {
             playSong(songs[0], songs);
-            showToast({
-                message: `Playing ${name}'s popular tracks`,
-                type: 'info',
-            });
+            // showToast({
+            //     message: `Playing ${name}'s popular tracks`,
+            //     type: 'info',
+            // });
         }
     };
 
     const renderAlbumItem = ({ item }: { item: Album }) => (
-        <TouchableOpacity style={styles.albumCard} activeOpacity={0.8}>
+        <TouchableOpacity
+            style={styles.albumCard}
+            activeOpacity={0.8}
+            onPress={() => {
+                navigation.navigate('AlbumSongs', {
+                    albumId: item.id,
+                    albumTitle: item.title,
+                    albumImage: item.image,
+                });
+            }}
+        >
             <Image
-                source={{ uri: item.cover_image || FALLBACK_SONG_COVER }}
+                source={{ uri: item.image || FALLBACK_SONG_COVER }}
                 style={styles.albumCover}
                 resizeMode="cover"
             />
             <Text style={styles.albumName} numberOfLines={1}>
-                {item.name}
+                {item.title}
             </Text>
             {item.release_date && (
                 <Text style={styles.albumDate}>
@@ -246,7 +261,7 @@ const ArtistDetailScreen: React.FC = () => {
         <View style={styles.topContainer}>
             <View style={styles.imageHeader}>
                 <Image
-                    source={{ uri: image || artistData?.profile_image || FALLBACK_ARTIST_IMAGE }}
+                    source={{ uri: artistData?.cover_image || image || artistData?.profile_image || FALLBACK_ARTIST_IMAGE }}
                     style={StyleSheet.absoluteFill}
                     resizeMode="cover"
                 />
@@ -393,9 +408,10 @@ const styles = StyleSheet.create({
     },
     artistNameTitle: {
         fontSize: normalize(48),
-        fontWeight: '900',
+        fontWeight: '500',
         color: '#fff',
         letterSpacing: -1,
+        fontFamily: 'Poppins-Bold',
     },
     followersText: {
         color: 'rgba(255,255,255,0.7)',
@@ -543,6 +559,7 @@ const styles = StyleSheet.create({
         fontSize: normalize(14),
         fontWeight: '600',
         marginTop: normalize(8),
+        fontFamily: 'Poppins-SemiBold',
     },
     albumDate: {
         color: 'rgba(255,255,255,0.5)',

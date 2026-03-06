@@ -22,6 +22,7 @@ import AddToPlaylistModal from '../../components/AddToPlaylistModal';
 import { usePlayer } from '../../components/Player';
 import { COLORS } from '../../config/color';
 import { getUserProfile } from '../../storage/userStorage';
+import { getApiInstance } from '../../utils/api';
 
 type RootStackParamList = {
   Welcome: undefined;
@@ -51,6 +52,28 @@ const FullPlayerScreen: React.FC = () => {
       if (profile?.id) setUserId(profile.id);
     });
   }, []);
+
+  const [isLiked, setIsLiked] = useState<boolean>(currentSong?.is_liked || false);
+
+  useEffect(() => {
+    if (currentSong) {
+      setIsLiked(currentSong.is_liked || false);
+    }
+  }, [currentSong]);
+
+  const handleToggleLike = async () => {
+    if (!currentSong) return;
+    try {
+      const api = await getApiInstance();
+      const endpoint = isLiked ? `/api/musics/${currentSong.id}/unlike` : `/api/musics/${currentSong.id}/like`;
+
+      await api.post(endpoint);
+
+      setIsLiked(!isLiked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  };
 
   if (!currentSong) {
     return null;
@@ -129,7 +152,6 @@ const FullPlayerScreen: React.FC = () => {
               { useNativeDriver: false },
             )}
             scrollEventThrottle={16}>
-            {/* Cover Image */}
             <Animated.View
               style={[
                 styles.coverContainer,
@@ -137,7 +159,21 @@ const FullPlayerScreen: React.FC = () => {
                   opacity: imageOpacity,
                 },
               ]}>
-              <Image source={{ uri: currentSong.cover }} style={styles.coverImage} />
+              <View style={styles.coverWrapper}>
+                <Image source={{ uri: currentSong.cover }} style={styles.coverImage} />
+                <TouchableOpacity
+                  style={styles.likeOverlayButton}
+                  onPress={handleToggleLike}
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome6
+                    name="heart"
+                    size={normalize(28)}
+                    color={isLiked ? COLORS.primary : "rgba(255,255,255,0.8)"}
+                    solid={isLiked}
+                  />
+                </TouchableOpacity>
+              </View>
             </Animated.View>
 
             {/* Song Info */}
@@ -369,6 +405,24 @@ const styles = StyleSheet.create({
     fontSize: normalize(16),
     lineHeight: normalize(28),
     textAlign: 'center',
+  },
+  coverWrapper: {
+    position: 'relative',
+    width: normalize(320),
+    height: normalize(320),
+  },
+  likeOverlayButton: {
+    position: 'absolute',
+    bottom: normalize(15),
+    right: normalize(15),
+    width: normalize(50),
+    height: normalize(50),
+    borderRadius: normalize(25),
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
 });
 

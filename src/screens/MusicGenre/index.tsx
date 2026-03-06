@@ -161,10 +161,10 @@ const MusicGenreScreen: React.FC = () => {
         style={[styles.songRow, isActive && styles.songRowActive]}
         onPress={() => {
           playSong(item, songs);
-          showToast({
-            message: `Memutar ${item.title}`,
-            type: 'info',
-          });
+          // showToast({
+          //   message: `Memutar ${item.title}`,
+          //   type: 'info',
+          // });
         }}
       >
         <Image

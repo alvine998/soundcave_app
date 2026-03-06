@@ -90,4 +90,6 @@ export type Song = {
   time: string;
   cover: string;
   lyrics: string;
+  is_liked?: boolean;
+  playlist_song_id?: number;
 };

@@ -22,6 +22,7 @@ import { useToast } from '../../components/Toast';
 import { getApiInstance } from '../../utils/api';
 import { usePlayer } from '../../components/Player';
 import { Song } from '../../storage/songs';
+import { Modal } from 'react-native';
 
 const FALLBACK_SONG_COVER =
   'https://images.pexels.com/photos/995301/pexels-photo-995301.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -80,11 +81,14 @@ const PlaylistSongsScreen: React.FC = () => {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [showOptions, setShowOptions] = useState(false);
 
   // Fungsi untuk mapping data dari API ke struktur Song
-  const mapApiDataToSong = useCallback((apiData: any): Song => {
+  const mapApiDataToSong = useCallback((apiData: any, playlistSongId?: number): Song => {
     return {
       id: apiData.id,
+      playlist_song_id: playlistSongId,
       artist: apiData.artist || apiData.artist_name || 'Unknown Artist',
       title: apiData.title || apiData.name || 'Unknown Title',
       url:
@@ -102,6 +106,7 @@ const PlaylistSongsScreen: React.FC = () => {
         apiData.cover_image ||
         FALLBACK_SONG_COVER,
       lyrics: apiData.lyrics || '',
+      is_liked: apiData.is_liked || false,
     };
   }, []);
 
@@ -162,7 +167,7 @@ const PlaylistSongsScreen: React.FC = () => {
         const mappedSongs: Song[] = sortedData
           .map((item: PlaylistSongItem) => {
             if (item.music) {
-              return mapApiDataToSong(item.music);
+              return mapApiDataToSong(item.music, item.id);
             }
             return null;
           })
@@ -208,6 +213,28 @@ const PlaylistSongsScreen: React.FC = () => {
     fetchPlaylistSongs();
   }, [fetchPlaylistSongs]);
 
+  const handleRemoveFromPlaylist = async (song: Song) => {
+    if (!song.playlist_song_id) {
+      showToast({ message: 'Playlist song ID tidak ditemukan', type: 'error' });
+      return;
+    }
+
+    try {
+      const api = await getApiInstance();
+      await api.delete(`/api/playlist-songs/${song.playlist_song_id}`);
+      showToast({ message: 'Berhasil dihapus dari playlist', type: 'success' });
+      fetchPlaylistSongs(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error removing song from playlist:', error);
+      showToast({
+        message: error.response?.data?.message || 'Gagal menghapus dari playlist',
+        type: 'error',
+      });
+    } finally {
+      setShowOptions(false);
+    }
+  };
+
   const displayName = playlistName || playlistData?.name || 'Playlist';
   const displayCover = playlistCover || playlistData?.cover_image || null;
 
@@ -220,10 +247,10 @@ const PlaylistSongsScreen: React.FC = () => {
         activeOpacity={0.85}
         onPress={() => {
           playSong(item, songs);
-          showToast({
-            message: `Playing ${item.title}`,
-            type: 'info',
-          });
+          // showToast({
+          //   message: `Playing ${item.title}`,
+          //   type: 'info',
+          // });
         }}
       >
         <Image
@@ -239,6 +266,15 @@ const PlaylistSongsScreen: React.FC = () => {
             {item.artist}
           </Text>
         </View>
+        <TouchableOpacity
+          style={styles.moreButton}
+          onPress={() => {
+            setSelectedSong(item);
+            setShowOptions(true);
+          }}
+        >
+          <FontAwesome6 name="ellipsis-vertical" size={16} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
         <Text
           style={[styles.songDuration, isActive && styles.songDurationActive]}
         >
@@ -247,6 +283,52 @@ const PlaylistSongsScreen: React.FC = () => {
       </TouchableOpacity>
     );
   };
+
+  const renderOptionsModal = () => (
+    <Modal
+      visible={showOptions}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowOptions(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowOptions(false)}
+      >
+        <View style={styles.optionsContainer}>
+          <View style={styles.optionsHeader}>
+            <Image
+              source={{ uri: selectedSong?.cover || FALLBACK_SONG_COVER }}
+              style={styles.optionsCover}
+            />
+            <View style={styles.optionsInfo}>
+              <Text style={styles.optionsTitle} numberOfLines={1}>{selectedSong?.title}</Text>
+              <Text style={styles.optionsArtist} numberOfLines={1}>{selectedSong?.artist}</Text>
+            </View>
+          </View>
+
+          <View style={styles.optionsList}>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => selectedSong && handleRemoveFromPlaylist(selectedSong)}
+            >
+              <FontAwesome6 name="trash-can" size={20} color={COLORS.primary} style={styles.optionIcon} />
+              <Text style={[styles.optionText, { color: COLORS.primary }]}>Remove from Playlist</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => setShowOptions(false)}
+            >
+              <FontAwesome6 name="share-nodes" size={20} color="#fff" style={styles.optionIcon} />
+              <Text style={styles.optionText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
@@ -309,6 +391,8 @@ const PlaylistSongsScreen: React.FC = () => {
           <Text style={styles.emptyText}>Tidak ada songs dalam playlist</Text>
         </View>
       )}
+
+      {renderOptionsModal()}
     </SafeAreaView>
   );
 };
@@ -422,6 +506,67 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: normalize(14),
     fontStyle: 'italic',
+  },
+  moreButton: {
+    padding: normalize(8),
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  optionsContainer: {
+    backgroundColor: '#1a1a2e',
+    borderTopLeftRadius: normalize(24),
+    borderTopRightRadius: normalize(24),
+    paddingBottom: normalize(40),
+    paddingTop: normalize(20),
+  },
+  optionsHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: normalize(20),
+    paddingBottom: normalize(20),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+  },
+  optionsCover: {
+    width: normalize(60),
+    height: normalize(60),
+    borderRadius: normalize(8),
+    backgroundColor: '#222',
+  },
+  optionsInfo: {
+    flex: 1,
+    marginLeft: normalize(15),
+  },
+  optionsTitle: {
+    color: '#fff',
+    fontSize: normalize(18),
+    fontWeight: '700',
+  },
+  optionsArtist: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: normalize(14),
+    marginTop: normalize(2),
+  },
+  optionsList: {
+    paddingTop: normalize(10),
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: normalize(15),
+    paddingHorizontal: normalize(20),
+  },
+  optionIcon: {
+    width: normalize(30),
+  },
+  optionText: {
+    color: '#fff',
+    fontSize: normalize(16),
+    fontWeight: '500',
+    marginLeft: normalize(10),
   },
 });
 

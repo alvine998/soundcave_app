@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
     Image,
-    ImageBackground,
     SafeAreaView,
     FlatList,
     StyleSheet,
@@ -9,7 +8,6 @@ import {
     TouchableOpacity,
     View,
     RefreshControl,
-    ActivityIndicator,
     Dimensions,
     Platform,
     ListRenderItem,
@@ -29,7 +27,7 @@ import { COLORS } from '../../config/color';
 import { UserProfile } from '../../storage/userStorage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SONGS, Song } from '../../storage/songs';
-import { NEWS, NEWS_BACKDROPS } from '../../storage/news';
+import { NEWS_BACKDROPS } from '../../storage/news';
 import { getApiInstance } from '../../utils/api';
 import { getFeaturedArtists, saveFeaturedArtists, Artist } from '../../storage/artistsStorage';
 
@@ -405,9 +403,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     const { showToast } = useToast();
     const { playSong, currentSong, isPlaying } = usePlayer();
     const [refreshing, setRefreshing] = useState(false);
-    const [searchQuery] = useState('');
-    const [latestDrops, setLatestDrops] = useState<readonly Song[]>([]);
-    const [loadingLatestDrops, setLoadingLatestDrops] = useState(true);
+    const [top100Songs, setTop100Songs] = useState<readonly Song[]>([]);
+    const [loadingTop100, setLoadingTop100] = useState(true);
     const [musicVideos, setMusicVideos] = useState<MusicVideo[]>([]);
     const [loadingMusicVideos, setLoadingMusicVideos] = useState(true);
     const [podcasts, setPodcasts] = useState<Podcast[]>([]);
@@ -498,23 +495,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     }, []);
 
     // Fetch functions (same as before, but using memoized mappers)
-    const fetchLatestDrops = useCallback(async () => {
+
+    const fetchTop100Songs = useCallback(async () => {
         try {
-            setLoadingLatestDrops(true);
+            setLoadingTop100(true);
             const api = await getApiInstance();
-            const response = await api.get('/api/musics?page=1&limit=100');
+            const response = await api.get('/api/musics?page=1&limit=100&is_top100=1&is_approved=1');
 
             const data = response.data?.data || response.data || [];
+            console.log(data, "==> data");
             const mappedSongs: Song[] = Array.isArray(data)
                 ? data.map(mapApiDataToSong)
                 : [];
 
-            setLatestDrops(mappedSongs);
+            setTop100Songs(mappedSongs);
         } catch (error: any) {
-            console.error('Error fetching latest drops:', error);
-            setLatestDrops([...SONGS]);
+            console.error('Error fetching top 100 hits:', error);
+            setTop100Songs([]);
         } finally {
-            setLoadingLatestDrops(false);
+            setLoadingTop100(false);
         }
     }, [mapApiDataToSong]);
 
@@ -523,7 +522,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             setLoadingMusicVideos(true);
             const api = await getApiInstance();
             const response = await api.get('/api/music-videos', {
-                params: { page: 1, limit: 5 },
+                params: {
+                    page: 1,
+                    limit: 5,
+                    is_highlight: 1
+                },
             });
 
             const data = response.data?.data || [];
@@ -643,8 +646,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             }
 
             const api = await getApiInstance();
-            const response = await api.get('/api/artists/random', {
-                params: { limit: 10 },
+            const response = await api.get('/api/artists', {
+                params: {
+                    limit: 10,
+                    is_highlight: 1
+                },
             });
 
             const data = response.data?.data || [];
@@ -677,7 +683,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     useEffect(() => {
         // Defer data fetching until after UI is mounted for smoother initial load
         InteractionManager.runAfterInteractions(() => {
-            fetchLatestDrops();
+            fetchTop100Songs();
             fetchMusicVideos();
             fetchPodcasts();
             fetchNews();
@@ -685,12 +691,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             fetchPlaylists();
             fetchFeaturedArtists();
         });
-    }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists]);
+    }, [fetchTop100Songs, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists]);
 
     // Prefetch critical images
     useEffect(() => {
-        if (latestDrops.length > 0) {
-            latestDrops.slice(0, 10).forEach(song => {
+        if (top100Songs.length > 0) {
+            top100Songs.slice(0, 10).forEach(song => {
                 if (song.cover) Image.prefetch(song.cover);
             });
         }
@@ -699,12 +705,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                 if (song.cover) Image.prefetch(song.cover);
             });
         }
-    }, [latestDrops, topStreamedSongs]);
+    }, [top100Songs, topStreamedSongs]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         Promise.all([
-            fetchLatestDrops(),
+            fetchTop100Songs(),
             fetchMusicVideos(),
             fetchPodcasts(),
             fetchNews(),
@@ -713,27 +719,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             fetchFeaturedArtists(),
         ]).finally(() => {
             setRefreshing(false);
-            showToast({ message: 'Home refreshed', type: 'info' });
+            // showToast({ message: 'Home refreshed', type: 'info' });
         });
-    }, [fetchLatestDrops, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists, showToast]);
+    }, [fetchTop100Songs, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists, showToast]);
 
     const selectedGenres = profile.selectedGenres ?? [];
     const paddingTop = Math.max(insets.top, normalize(24));
     const paddingBottom = Math.max(insets.bottom, normalize(10)) + normalize(30);
 
-    const filteredSongs = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
-        const songsToFilter: readonly Song[] = latestDrops.length > 0 ? latestDrops : SONGS;
-        if (!query) {
-            return songsToFilter;
-        }
-        return songsToFilter.filter(song => {
-            return (
-                song.title.toLowerCase().includes(query) ||
-                song.artist.toLowerCase().includes(query)
-            );
-        });
-    }, [searchQuery, latestDrops]);
 
     // Build sections for FlatList
     const sections = useMemo<Section[]>(() => {
@@ -760,8 +753,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             result.push({ id: 'genres', type: 'genres', data: selectedGenres });
         }
 
-        if (filteredSongs.length > 0 || loadingLatestDrops) {
-            result.push({ id: 'top100', type: 'top100', data: filteredSongs });
+        if (top100Songs.length > 0 || loadingTop100) {
+            result.push({ id: 'top100', type: 'top100', data: top100Songs });
         }
 
         if (playlists.length > 0 || loadingPlaylists) {
@@ -781,8 +774,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         loadingPodcasts,
         musicVideos,
         loadingMusicVideos,
-        filteredSongs,
-        loadingLatestDrops,
+        top100Songs,
+        loadingTop100,
         playlists,
         loadingPlaylists,
         featuredArtists,
@@ -1044,7 +1037,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                     return (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Top 100</Text>
-                            {loadingLatestDrops && latestDrops.length === 0 ? (
+                            {loadingTop100 && top100Songs.length === 0 ? (
                                 <View style={styles.top100ScrollContent}>
                                     {[1, 2].map(i => (
                                         <View key={i} style={styles.top100Column}>
@@ -1054,13 +1047,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                         </View>
                                     ))}
                                 </View>
-                            ) : filteredSongs.length > 0 ? (
+                            ) : top100Songs.length > 0 ? (
                                 <FlatList
                                     horizontal
                                     showsHorizontalScrollIndicator={false}
-                                    data={Array.from({ length: Math.ceil(filteredSongs.length / 4) })}
+                                    data={Array.from({ length: Math.ceil(top100Songs.length / 4) })}
                                     renderItem={({ index: columnIndex }) => {
-                                        const columnItems = filteredSongs.slice(columnIndex * 4, columnIndex * 4 + 4);
+                                        const columnItems = top100Songs.slice(columnIndex * 4, columnIndex * 4 + 4);
                                         return (
                                             <View style={styles.top100Column}>
                                                 {columnItems.map((song, itemIndex) => {
@@ -1078,7 +1071,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                                                     });
                                                                     return;
                                                                 }
-                                                                playSong(song, [...filteredSongs]);
+                                                                playSong(song, [...top100Songs]);
                                                                 // showToast({
                                                                 //     message: `Playing ${song.title}`,
                                                                 //     type: 'info',
@@ -1228,6 +1221,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             navigation,
             loadingTopStreamed,
             topStreamedSongs,
+            topStreamedGroups,
             currentSong,
             playSong,
             showToast,
@@ -1236,9 +1230,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             podcasts,
             loadingMusicVideos,
             musicVideos,
-            loadingLatestDrops,
-            latestDrops,
-            filteredSongs,
+            loadingTop100,
+            top100Songs,
             loadingPlaylists,
             playlists,
             loadingFeaturedArtists,

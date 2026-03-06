@@ -54,6 +54,9 @@ const HomeTabs: React.FC<HomeTabsProps> = ({
           opacity: route.name === 'Home' ? 0 : 1,
         },
         tabBarBackground: () => <View style={{ flex: 1, backgroundColor: 'transparent' }} />,
+        tabBarItemStyle: {
+          marginTop: route.name !== 'Home' ? normalize(10) : 0,
+        },
         tabBarStyle: {
           borderTopColor: 'transparent',
           borderTopWidth: 0,
@@ -64,7 +67,6 @@ const HomeTabs: React.FC<HomeTabsProps> = ({
           shadowOpacity: 0,
           shadowColor: 'transparent',
           paddingBottom: insets.bottom,
-          marginTop: normalize(10),
         },
         tabBarIcon: ({ color, focused }) => {
           const iconName = getIconName(route.name);
