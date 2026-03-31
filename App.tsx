@@ -36,6 +36,10 @@ import { clearToken } from './src/storage/tokenStorage';
 import { resetApiInstance } from './src/utils/api';
 import { navigationRef } from './src/utils/navigationService';
 import ArtistDetailScreen from './src/screens/ArtistDetail';
+import LiveStreamDetailScreen from './src/screens/LiveStreamDetail';
+import GoLiveScreen from './src/screens/GoLive';
+
+
 
 type RootStackParamList = {
   Splash: undefined;
@@ -88,7 +92,18 @@ type RootStackParamList = {
     image: string | null;
   };
   Profile: undefined;
+  LiveStreamDetail: {
+    id: string;
+    title: string;
+    streamer: string;
+    viewerCount: number;
+    cover: string;
+    avatar: string;
+  };
+  GoLive: undefined;
 };
+
+
 
 enableScreens(true);
 
@@ -416,7 +431,25 @@ function App() {
                     ) : null
                   }
                 </Stack.Screen>
+                <Stack.Screen
+                  name="LiveStreamDetail"
+                  component={LiveStreamDetailScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'fade_from_bottom',
+                  }}
+                />
+                <Stack.Screen
+                  name="GoLive"
+                  component={GoLiveScreen}
+                  options={{
+                    headerShown: false,
+                    animation: 'fade_from_bottom',
+                  }}
+                />
               </Stack.Navigator>
+
+
             </NavigationContainer>
           </PlayerProvider>
         </PlaylistProvider>

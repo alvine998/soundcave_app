@@ -20,6 +20,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { HomeTabParamList } from '../../navigation/HomeTabs';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+
 
 import { usePlayer } from '../../components/Player';
 import { useToast } from '../../components/Toast';
@@ -62,7 +64,19 @@ type RootStackParamList = {
         image: string | null;
     };
     Profile: undefined;
+    GoLive: undefined;
+    LiveStreamDetail: {
+        id: string;
+        title: string;
+        streamer: string;
+        viewerCount: number;
+        cover: string;
+        avatar: string;
+        playbackUrl?: string;
+    };
 };
+
+
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
     BottomTabNavigationProp<HomeTabParamList, 'Home'>,
@@ -92,6 +106,17 @@ type Podcast = {
     cover: string;
     audioUrl?: string;
 };
+
+type LiveStream = {
+    id: string;
+    title: string;
+    streamer: string;
+    viewerCount: number;
+    cover: string;
+    avatar: string;
+    playbackUrl?: string;
+};
+
 
 type NewsData = {
     id: number;
@@ -127,7 +152,10 @@ type SectionType =
     | 'top100'
     | 'playlists'
     | 'artists'
-    | 'news';
+    | 'news'
+    | 'liveStreaming'
+    | 'goLive';
+
 
 type Section = {
     id: string;
@@ -395,6 +423,50 @@ const NewsCard = React.memo<{
     (prevProps, nextProps) => prevProps.news.id === nextProps.news.id
 );
 
+const LiveStreamCard = React.memo<{
+    stream: LiveStream;
+    onPress: () => void;
+}>(
+    ({ stream, onPress }) => {
+        return (
+            <TouchableOpacity
+                activeOpacity={0.9}
+                style={styles.liveCard}
+                onPress={onPress}
+            >
+                <Image
+                    source={{ uri: stream.cover }}
+                    style={styles.liveCover}
+                    resizeMode="cover"
+                />
+                <View style={styles.liveOverlay}>
+                    <View style={styles.liveBadge}>
+                        <Text style={styles.liveBadgeText}>LIVE</Text>
+                    </View>
+                    <View style={styles.viewerBadge}>
+                        <Text style={styles.viewerBadgeText}>
+                            {stream.viewerCount > 1000 ? `${(stream.viewerCount / 1000).toFixed(1)}k` : stream.viewerCount}
+                        </Text>
+                    </View>
+                </View>
+                <View style={styles.liveInfo}>
+                    <Image source={{ uri: stream.avatar }} style={styles.liveAvatar} />
+                    <View style={styles.liveTextContainer}>
+                        <Text style={styles.liveTitle} numberOfLines={1}>
+                            {stream.title}
+                        </Text>
+                        <Text style={styles.liveStreamer} numberOfLines={1}>
+                            {stream.streamer}
+                        </Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    },
+    (prevProps, nextProps) => prevProps.stream.id === nextProps.stream.id
+);
+
+
 // ============ MAIN COMPONENT ============
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
@@ -417,6 +489,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
     const [loadingPlaylists, setLoadingPlaylists] = useState(true);
     const [featuredArtists, setFeaturedArtists] = useState<Artist[]>([]);
     const [loadingFeaturedArtists, setLoadingFeaturedArtists] = useState(true);
+    const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
+    const [loadingLiveStreams, setLoadingLiveStreams] = useState(true);
+
 
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
@@ -462,6 +537,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             duration: formattedDuration,
             cover: apiData.thumbnail || apiData.cover || FALLBACK_SONG_COVER,
             audioUrl: apiData.audio_url || apiData.audioUrl || apiData.video_url || undefined,
+        };
+    }, []);
+
+    const mapApiDataToLiveStream = useCallback((apiData: any): LiveStream => {
+        return {
+            id: String(apiData.id || ''),
+            title: apiData.title || 'Untitled Stream',
+            streamer: apiData.artist?.name || 'Unknown Artist',
+            viewerCount: apiData.viewer_count || 0,
+            avatar: apiData.artist?.profile_image || FALLBACK_SONG_COVER,
+            cover: apiData.artist?.profile_image || FALLBACK_SONG_COVER,
+            // Fix: Override 'localhost' from backend with actual server IP
+            playbackUrl: apiData.playback_url ? apiData.playback_url.replace('localhost', '154.26.137.37') : undefined,
         };
     }, []);
 
@@ -680,6 +768,28 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         }
     }, []);
 
+    const fetchLiveStreams = useCallback(async () => {
+        try {
+            setLoadingLiveStreams(true);
+            const api = await getApiInstance();
+            const response = await api.get('/api/artist-streams/active', {
+                params: { page: 1, limit: 10 },
+            });
+
+            const data = response.data?.data || [];
+            const mappedStreams: LiveStream[] = Array.isArray(data)
+                ? data.map(mapApiDataToLiveStream)
+                : [];
+
+            setLiveStreams(mappedStreams);
+        } catch (error: any) {
+            console.error('Error fetching live streams:', error);
+            setLiveStreams([]);
+        } finally {
+            setLoadingLiveStreams(false);
+        }
+    }, [mapApiDataToLiveStream]);
+
     useEffect(() => {
         // Defer data fetching until after UI is mounted for smoother initial load
         InteractionManager.runAfterInteractions(() => {
@@ -690,8 +800,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             fetchTopStreamed();
             fetchPlaylists();
             fetchFeaturedArtists();
+            fetchLiveStreams();
         });
-    }, [fetchTop100Songs, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists]);
+    }, [fetchTop100Songs, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists, fetchLiveStreams]);
 
     // Prefetch critical images
     useEffect(() => {
@@ -717,11 +828,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             fetchTopStreamed(),
             fetchPlaylists(),
             fetchFeaturedArtists(),
+            fetchLiveStreams(),
         ]).finally(() => {
             setRefreshing(false);
             // showToast({ message: 'Home refreshed', type: 'info' });
         });
-    }, [fetchTop100Songs, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists, showToast]);
+    }, [fetchTop100Songs, fetchMusicVideos, fetchPodcasts, fetchNews, fetchTopStreamed, fetchPlaylists, fetchFeaturedArtists, fetchLiveStreams, showToast]);
 
     const selectedGenres = profile.selectedGenres ?? [];
     const paddingTop = Math.max(insets.top, normalize(24));
@@ -733,6 +845,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         const result: Section[] = [
             { id: 'header', type: 'header' },
         ];
+
+        if (profile.role === 'artist' || profile.role === 'independent' || profile.role === 'label') {
+            result.push({ id: 'goLive', type: 'goLive' });
+        }
         if (topStreamedSongs.length > 0 || loadingTopStreamed) {
             result.push({ id: 'topStreamed', type: 'topStreamed', data: topStreamedSongs });
         }
@@ -740,6 +856,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         if (featuredArtists.length > 0 || loadingFeaturedArtists) {
             result.push({ id: 'artists', type: 'artists', data: featuredArtists });
         }
+
+        if (liveStreams.length > 0 || loadingLiveStreams) {
+            result.push({ id: 'liveStreaming', type: 'liveStreaming', data: liveStreams });
+        }
+
 
         if (musicVideos.length > 0 || loadingMusicVideos) {
             result.push({ id: 'musicVideos', type: 'musicVideos', data: musicVideos });
@@ -780,6 +901,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
         loadingPlaylists,
         featuredArtists,
         loadingFeaturedArtists,
+        liveStreams,
+        loadingLiveStreams,
         newsData,
         loadingNews,
     ]);
@@ -820,11 +943,36 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                         </View>
                                     </View>
                                 </View>
-                                <Image
-                                    source={require('../../assets/images/home_soundcave.png')}
-                                    style={{ width: normalize(100), height: normalize(50) }}
-                                />
+                                <View style={styles.headerRight}>
+                                    <Image
+                                        source={require('../../assets/images/home_soundcave.png')}
+                                        style={{ width: normalize(100), height: normalize(40) }}
+                                        resizeMode="contain"
+                                    />
+                                </View>
                             </View>
+                        </View>
+                    );
+
+                case 'goLive':
+                    return (
+                        <View style={styles.section}>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                style={styles.goLiveBanner}
+                                onPress={() => navigation.navigate('GoLive')}
+                            >
+                                <View style={styles.goLiveBannerContent}>
+                                    <View style={styles.goLiveIconContainer}>
+                                        <FontAwesome6 name="tower-broadcast" size={24} color="#fff" />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.goLiveTitle}>Start Broadcasting</Text>
+                                        <Text style={styles.goLiveSubtitle}>Go live and connect with your fans now</Text>
+                                    </View>
+                                </View>
+                                <FontAwesome6 name="chevron-right" size={16} color="rgba(255,255,255,0.4)" />
+                            </TouchableOpacity>
                         </View>
                     );
 
@@ -1168,6 +1316,55 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                         </View>
                     );
 
+                case 'liveStreaming':
+                    return (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Live Streaming</Text>
+                            {loadingLiveStreams && liveStreams.length === 0 ? (
+                                <View style={styles.liveScrollContent}>
+                                    {[1, 2].map(i => (
+                                        <View key={i} style={styles.liveCard}>
+                                            <Skeleton width={normalize(280)} height={normalize(180)} borderRadius={normalize(12)} />
+                                            <Skeleton width={normalize(150)} height={normalize(14)} borderRadius={normalize(4)} style={{ marginTop: 12 }} />
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : liveStreams.length > 0 ? (
+                                <FlatList
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    data={liveStreams}
+                                    renderItem={({ item: stream }) => (
+                                        <LiveStreamCard
+                                            stream={stream}
+                                            onPress={() => {
+                                                navigation.navigate('LiveStreamDetail', {
+                                                    id: stream.id,
+                                                    title: stream.title,
+                                                    streamer: stream.streamer,
+                                                    viewerCount: stream.viewerCount,
+                                                    cover: stream.cover,
+                                                    avatar: stream.avatar,
+                                                    playbackUrl: stream.playbackUrl,
+                                                });
+                                            }}
+                                        />
+                                    )}
+                                    keyExtractor={(stream) => stream.id}
+                                    contentContainerStyle={styles.liveScrollContent}
+                                    removeClippedSubviews={true}
+                                    maxToRenderPerBatch={5}
+                                    windowSize={3}
+                                />
+                            ) : (
+                                <View style={styles.emptyContainer}>
+                                    <Text style={styles.emptyText}>Tidak ada streaming aktif</Text>
+                                </View>
+                            )}
+                        </View>
+                    );
+
+
                 case 'news':
                     return (
                         <View style={styles.section}>
@@ -1235,7 +1432,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             loadingPlaylists,
             playlists,
             loadingFeaturedArtists,
+            loadingFeaturedArtists,
             featuredArtists,
+            loadingLiveStreams,
+            liveStreams,
             loadingNews,
             newsData,
             mapApiDataToNewsItem,
@@ -1292,6 +1492,25 @@ const styles = StyleSheet.create({
     },
     headerLeft: {
         flex: 1,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(12),
+    },
+    goLiveButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(8),
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: normalize(12),
+        paddingVertical: normalize(8),
+        borderRadius: normalize(20),
+    },
+    goLiveText: {
+        color: '#fff',
+        fontSize: normalize(12),
+        fontWeight: '700',
     },
     profileInfo: {
         flexDirection: 'row',
@@ -1409,6 +1628,39 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: normalize(22),
         fontWeight: '600',
+    },
+    goLiveBanner: {
+        backgroundColor: '#1E1E1E',
+        borderRadius: normalize(16),
+        padding: normalize(16),
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    goLiveBannerContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(16),
+    },
+    goLiveIconContainer: {
+        width: normalize(48),
+        height: normalize(48),
+        borderRadius: normalize(12),
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    goLiveTitle: {
+        color: '#fff',
+        fontSize: normalize(18),
+        fontWeight: '700',
+    },
+    goLiveSubtitle: {
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: normalize(13),
+        marginTop: normalize(2),
     },
     chipRowScrollContent: {
         gap: normalize(10),
@@ -1654,6 +1906,82 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.6)',
         fontSize: normalize(14),
         fontStyle: 'italic',
+    },
+    liveScrollContent: {
+        gap: normalize(15),
+        paddingRight: normalize(24),
+    },
+    liveCard: {
+        width: normalize(200),
+        height: normalize(240),
+        borderRadius: normalize(15),
+        overflow: 'hidden',
+        backgroundColor: '#1a1a1a',
+        position: 'relative',
+    },
+    liveCover: {
+        width: '100%',
+        height: '100%',
+    },
+    liveOverlay: {
+        position: 'absolute',
+        top: normalize(10),
+        left: normalize(10),
+        right: normalize(10),
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    liveBadge: {
+        backgroundColor: '#FF3B30',
+        paddingHorizontal: normalize(8),
+        paddingVertical: normalize(4),
+        borderRadius: normalize(4),
+    },
+    liveBadgeText: {
+        color: '#fff',
+        fontSize: normalize(10),
+        fontWeight: '800',
+    },
+    viewerBadge: {
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        paddingHorizontal: normalize(8),
+        paddingVertical: normalize(4),
+        borderRadius: normalize(4),
+    },
+    viewerBadgeText: {
+        color: '#fff',
+        fontSize: normalize(10),
+        fontWeight: '600',
+    },
+    liveInfo: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        padding: normalize(12),
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(10),
+    },
+    liveAvatar: {
+        width: normalize(32),
+        height: normalize(32),
+        borderRadius: normalize(16),
+        borderWidth: 1.5,
+        borderColor: COLORS.primary,
+    },
+    liveTextContainer: {
+        flex: 1,
+    },
+    liveTitle: {
+        color: '#fff',
+        fontSize: normalize(13),
+        fontWeight: '700',
+    },
+    liveStreamer: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: normalize(11),
     },
 });
 
