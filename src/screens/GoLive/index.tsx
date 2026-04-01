@@ -23,8 +23,11 @@ import { NodePublisher } from 'react-native-nodemediaclient';
 import normalize from 'react-native-normalize';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import { useNavigation } from '@react-navigation/native';
+import ImagePicker from 'react-native-image-crop-picker';
+import DatePicker from 'react-native-date-picker';
 import { COLORS } from '../../config/color';
 import { getApiInstance } from '../../utils/api';
+import { useToast } from '../../components/Toast';
 import { 
   connectSocket, 
   joinStreamRoom, 
@@ -46,10 +49,12 @@ const PUBLISHER_HEIGHT = SCREEN_HEIGHT;
 const GoLiveScreen: React.FC = () => {
   const navigation = useNavigation();
   const publisherRef = useRef<any>(null);
+  const { showToast } = useToast();
   
   const [ingestUrl, setIngestUrl] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isPreparingToStream, setIsPreparingToStream] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [videoPosition, setVideoPosition] = useState<'front' | 'back'>('front');
@@ -60,6 +65,9 @@ const GoLiveScreen: React.FC = () => {
   const [viewerCount, setViewerCount] = useState(0);
   const [streamId, setStreamId] = useState<number | null>(null);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
+  const [streamType, setStreamType] = useState<'now' | 'scheduled'>('now');
+  const [scheduledDate, setScheduledDate] = useState(new Date(Date.now() + 3600000)); // Default to 1 hour from now
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Handle back/exit with confirmation if streaming
   const handleGoBack = () => {
@@ -202,6 +210,7 @@ const GoLiveScreen: React.FC = () => {
                 description: streamDescription || streamTitle,
                 ...(streamThumbnail ? { thumbnail: streamThumbnail } : {}),
                 stream_url: 'rtmp://154.26.137.37:1935/live',
+                ...(streamType === 'scheduled' ? { is_scheduled: true, scheduled_at: scheduledDate.toISOString() } : {}),
             });
         } catch (err: any) {
             if (err?.response?.status === 409) {
@@ -215,6 +224,7 @@ const GoLiveScreen: React.FC = () => {
                     description: streamDescription || streamTitle,
                     ...(streamThumbnail ? { thumbnail: streamThumbnail } : {}),
                     stream_url: 'rtmp://154.26.137.37:1935/live',
+                    ...(streamType === 'scheduled' ? { is_scheduled: true, scheduled_at: scheduledDate.toISOString() } : {}),
                 });
             } else {
                 throw err;
@@ -222,6 +232,12 @@ const GoLiveScreen: React.FC = () => {
         }
 
         const newIngestUrl = response?.data?.data?.ingest_url;
+        if (streamType === 'scheduled') {
+            showToast({ message: 'Stream scheduled successfully!', type: 'success' });
+            navigation.goBack();
+            return;
+        }
+
         if (newIngestUrl) {
             console.log('Stream registered with ingest url:', newIngestUrl);
             setStreamId(response.data.data.id);
@@ -234,6 +250,52 @@ const GoLiveScreen: React.FC = () => {
         console.error('Error preparing stream:', error);
         Alert.alert('Error', 'Failed to initialize stream with server.');
         setIsStarting(false);
+    }
+  };
+
+  const handleSelectThumbnail = async () => {
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 1280,
+        height: 720,
+        cropping: true,
+        mediaType: 'photo',
+        compressImageQuality: 0.8,
+      });
+
+      setIsUploading(true);
+      const api = await getApiInstance();
+      
+      const formData = new FormData();
+      formData.append('file', {
+        uri: image.path,
+        type: image.mime || 'image/jpeg',
+        name: `thumbnail_${Date.now()}.jpg`,
+      } as any);
+
+      const response = await api.post('/api/images/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const imageUrl = response.data?.data?.file_url;
+      if (imageUrl) {
+        setStreamThumbnail(imageUrl);
+        showToast({ message: 'Thumbnail uploaded!', type: 'success' });
+      } else {
+        throw new Error('No URL returned from upload');
+      }
+    } catch (error: any) {
+      if (error.code !== 'E_PICKER_CANCELLED') {
+        console.error('Error selecting/uploading thumbnail:', error);
+        showToast({ 
+          message: error.response?.data?.message || 'Failed to upload thumbnail', 
+          type: 'error' 
+        });
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -292,6 +354,8 @@ const GoLiveScreen: React.FC = () => {
               fps: 30,
               bitrate: 1500000,
             }}
+            // @ts-ignore
+            keyFrameInterval={1} // 1 second keyframe interval for low latency
             videoOrientation={1} // 1 = Portrait mode for streamer and viewer
             onEvent={(code: number, msg: string) => {
               console.log('NodePublisher Event:', code, msg);
@@ -357,6 +421,23 @@ const GoLiveScreen: React.FC = () => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.setupScroll}
               >
+                {/* Date Picker Modal */}
+                <DatePicker
+                  modal
+                  open={showDatePicker}
+                  date={scheduledDate}
+                  minimumDate={new Date()}
+                  onConfirm={(date) => {
+                    setShowDatePicker(false);
+                    setScheduledDate(date);
+                  }}
+                  onCancel={() => {
+                    setShowDatePicker(false);
+                  }}
+                  theme="dark"
+                  title="Schedule Stream"
+                  confirmText="Set Schedule"
+                />
                 <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.titleInput}
@@ -379,16 +460,66 @@ const GoLiveScreen: React.FC = () => {
                     numberOfLines={3}
                   />
                 </View>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.titleInput}
-                    placeholder="Thumbnail URL (optional)"
-                    placeholderTextColor="rgba(255,255,255,0.5)"
-                    value={streamThumbnail}
-                    onChangeText={setStreamThumbnail}
-                    autoCapitalize="none"
-                    keyboardType="url"
-                  />
+
+                {/* Stream Type Selector */}
+                <View style={styles.streamTypeContainer}>
+                  <TouchableOpacity 
+                    style={[styles.typeButton, streamType === 'now' && styles.activeTypeButton]}
+                    onPress={() => setStreamType('now')}
+                  >
+                    <FontAwesome6 name="bolt" size={14} color={streamType === 'now' ? '#fff' : 'rgba(255,255,255,0.5)'} />
+                    <Text style={[styles.typeButtonText, streamType === 'now' && styles.activeTypeButtonText]}>Go Live Now</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.typeButton, streamType === 'scheduled' && styles.activeTypeButton]}
+                    onPress={() => setStreamType('scheduled')}
+                  >
+                    <FontAwesome6 name="calendar-days" size={14} color={streamType === 'scheduled' ? '#fff' : 'rgba(255,255,255,0.5)'} />
+                    <Text style={[styles.typeButtonText, streamType === 'scheduled' && styles.activeTypeButtonText]}>Schedule</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {streamType === 'scheduled' && (
+                  <View style={styles.scheduleInfoContainer}>
+                    <Text style={styles.scheduleLabel}>Schedule for:</Text>
+                    <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowDatePicker(true)}>
+                      <FontAwesome6 name="clock" size={16} color={COLORS.primary} />
+                      <Text style={styles.dateText}>{scheduledDate.toLocaleString()}</Text>
+                      <FontAwesome6 name="chevron-right" size={12} color="rgba(255,255,255,0.3)" />
+                    </TouchableOpacity>
+                    <Text style={styles.scheduleHint}>Stream will be visible in your profile</Text>
+                  </View>
+                )}
+                <View style={styles.thumbnailContainer}>
+                  <Text style={styles.thumbnailLabel}>Stream Thumbnail</Text>
+                  <TouchableOpacity 
+                    style={styles.thumbnailButton} 
+                    onPress={handleSelectThumbnail}
+                    activeOpacity={0.8}
+                    disabled={isUploading}
+                  >
+                    {streamThumbnail ? (
+                      <View style={styles.thumbnailImageWrapper}>
+                        <Image source={{ uri: streamThumbnail }} style={styles.thumbnailImage} />
+                        <View style={styles.changeThumbnailBadge}>
+                          <FontAwesome6 name="camera" size={12} color="#fff" />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.thumbnailPlaceholder}>
+                        <FontAwesome6 name="image" size={32} color="rgba(255,255,255,0.3)" />
+                        <Text style={styles.thumbnailPlaceholderText}>Upload Thumbnail</Text>
+                        <Text style={styles.thumbnailPlaceholderSubtext}>1280 x 720 (16:9)</Text>
+                      </View>
+                    )}
+                    
+                    {isUploading && (
+                      <View style={styles.uploadOverlay}>
+                        <ActivityIndicator color={COLORS.primary} size="small" />
+                        <Text style={styles.uploadText}>Uploading...</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
                 </View>
               </ScrollView>
               <Text style={styles.hintText}>Ready to broadcast to SoundCave?</Text>
@@ -436,9 +567,17 @@ const GoLiveScreen: React.FC = () => {
             {isStarting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.streamButtonText}>
-                {isStreaming ? 'STOP STREAM' : 'GO LIVE'}
-              </Text>
+              <View style={styles.buttonContent}>
+                <FontAwesome6 
+                  name={isStreaming ? "stop" : (streamType === 'scheduled' ? "calendar-plus" : "video")} 
+                  size={16} 
+                  color="#fff" 
+                  style={{ marginRight: 10 }}
+                />
+                <Text style={styles.streamButtonText}>
+                  {isStreaming ? 'STOP STREAM' : (streamType === 'scheduled' ? 'SCHEDULE STREAM' : 'GO LIVE')}
+                </Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -644,6 +783,150 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: normalize(16),
     marginTop: normalize(10),
+  },
+  thumbnailContainer: {
+    width: '100%',
+    gap: normalize(8),
+    marginTop: normalize(10),
+  },
+  thumbnailLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(13),
+    fontWeight: '600',
+    marginLeft: normalize(10),
+  },
+  thumbnailButton: {
+    width: '100%',
+    height: normalize(150),
+    borderRadius: normalize(16),
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(128, 0, 255, 0.3)',
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  thumbnailPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: normalize(6),
+  },
+  thumbnailPlaceholderText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: normalize(14),
+    fontWeight: '700',
+  },
+  thumbnailPlaceholderSubtext: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: normalize(11),
+  },
+  thumbnailImageWrapper: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  changeThumbnailBadge: {
+    position: 'absolute',
+    bottom: normalize(10),
+    right: normalize(10),
+    width: normalize(32),
+    height: normalize(32),
+    borderRadius: normalize(16),
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: normalize(8),
+  },
+  uploadText: {
+    color: '#fff',
+    fontSize: normalize(12),
+    fontWeight: '600',
+  },
+  streamTypeContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: normalize(12),
+    padding: normalize(4),
+    marginTop: normalize(10),
+    gap: normalize(4),
+  },
+  typeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    height: normalize(44),
+    borderRadius: normalize(10),
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: normalize(8),
+  },
+  activeTypeButton: {
+    backgroundColor: COLORS.primary,
+  },
+  typeButtonText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: normalize(14),
+    fontWeight: '600',
+  },
+  activeTypeButtonText: {
+    color: '#fff',
+  },
+  scheduleInfoContainer: {
+    backgroundColor: 'rgba(128, 0, 255, 0.1)',
+    borderRadius: normalize(16),
+    padding: normalize(15),
+    marginTop: normalize(10),
+    borderWidth: 1,
+    borderColor: 'rgba(128, 0, 255, 0.2)',
+  },
+  scheduleLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: normalize(13),
+    fontWeight: '600',
+    marginBottom: normalize(10),
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: normalize(12),
+    height: normalize(52),
+    paddingHorizontal: normalize(15),
+    alignItems: 'center',
+    gap: normalize(12),
+    borderWidth: 1,
+    borderColor: 'rgba(128, 0, 255, 0.3)',
+  },
+  dateText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: normalize(15),
+    fontWeight: '600',
+  },
+  scheduleHint: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: normalize(11),
+    marginTop: normalize(10),
+    textAlign: 'center',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

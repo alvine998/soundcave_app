@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import normalize from 'react-native-normalize';
-// @ts-expect-error: No types for FontAwesome6, see lint_context_0.
 import Icon from 'react-native-vector-icons/FontAwesome6';
 
 import { useToast } from '../../components/Toast';

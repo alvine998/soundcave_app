@@ -16,7 +16,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore: react-native-video lacks bundled types.
 import Video from 'react-native-video';
-// @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import normalize from 'react-native-normalize';
 

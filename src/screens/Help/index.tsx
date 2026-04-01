@@ -13,7 +13,6 @@ import {
 import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-// @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../../config/color';

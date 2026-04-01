@@ -16,7 +16,6 @@ import { useNavigation } from '@react-navigation/native';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-// @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../../config/color';

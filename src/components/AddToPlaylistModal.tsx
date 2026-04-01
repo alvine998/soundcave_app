@@ -11,7 +11,6 @@ import {
     View,
 } from 'react-native';
 import normalize from 'react-native-normalize';
-// @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 import { COLORS } from '../config/color';

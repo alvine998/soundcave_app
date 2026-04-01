@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 
 import { COLORS } from '../../config/color';
-// @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 
 type ToastType = 'success' | 'error' | 'info';

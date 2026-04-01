@@ -23,7 +23,6 @@ import Sound from 'react-native-sound';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import normalize from 'react-native-normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// @ts-expect-error: FontAwesome6 lacks bundled types.
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 // @ts-ignore: react-native-music-control lacks bundled types.
 import MusicControl from 'react-native-music-control';

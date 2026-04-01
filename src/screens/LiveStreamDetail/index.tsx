@@ -180,6 +180,12 @@ const LiveStreamDetail: React.FC = () => {
                 onLoad={() => setIsLoading(false)}
                 onBuffer={({ isBuffering }) => setIsLoading(isBuffering)}
                 onError={(e) => console.log('Video Error:', e)}
+                bufferConfig={{
+                    minBufferMs: 1500,
+                    maxBufferMs: 3000,
+                    bufferForPlaybackMs: 1000,
+                    bufferForPlaybackAfterRebufferMs: 1500,
+                }}
             />
             {isLoading && (
                 <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
@@ -385,6 +391,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: normalize(10),
+        marginTop: normalize(-50),
     },
     inputContainer: {
         flex: 1,
