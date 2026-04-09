@@ -14,7 +14,7 @@ import {
     Animated,
     ActivityIndicator,
 } from 'react-native';
-import Video from 'react-native-video';
+import { NodePlayer } from 'react-native-nodemediaclient';
 import normalize from 'react-native-normalize';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -38,6 +38,7 @@ type RootStackParamList = {
         streamer: string;
         viewerCount: number;
         cover: string;
+        thumbnail: string;
         avatar: string;
         playbackUrl?: string;
     };
@@ -58,7 +59,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const LiveStreamDetail: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<LiveStreamDetailRouteProp>();
-    const { title, streamer, viewerCount, cover, avatar, playbackUrl } = route.params;
+    const { title, streamer, viewerCount, cover, thumbnail, avatar, playbackUrl } = route.params;
 
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState('');
@@ -66,9 +67,19 @@ const LiveStreamDetail: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [currentViewerCount, setCurrentViewerCount] = useState(viewerCount || 0);
+    const [retryKey, setRetryKey] = useState(0);
     const insets = useSafeAreaInsets();
     
     const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    const handleVideoError = (e: any) => {
+        console.log('Video Error:', e);
+        // Wait 3 seconds and retry loading the stream
+        setTimeout(() => {
+            console.log('Retrying stream...');
+            setRetryKey(prev => prev + 1);
+        }, 3000);
+    };
 
     // Connect to Socket and join room
     useEffect(() => {
@@ -169,24 +180,32 @@ const LiveStreamDetail: React.FC = () => {
         </View>
     );
 
+    // Convert HLS URL to RTMP ingest URL format for NodePlayer
+    const rtmpUrl = playbackUrl ? playbackUrl.replace('http://', 'rtmp://').replace(':8080/hls/', '/live/').replace('.m3u8', '') : '';
+
     return (
         <View style={styles.container}>
             {/* Live Stream Video Player */}
-            <Video
-                source={{ uri: playbackUrl || 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8' }}
-                style={styles.backgroundStream}
-                resizeMode="cover"
-                repeat={true}
-                onLoad={() => setIsLoading(false)}
-                onBuffer={({ isBuffering }) => setIsLoading(isBuffering)}
-                onError={(e) => console.log('Video Error:', e)}
-                bufferConfig={{
-                    minBufferMs: 1500,
-                    maxBufferMs: 3000,
-                    bufferForPlaybackMs: 1000,
-                    bufferForPlaybackAfterRebufferMs: 1500,
-                }}
-            />
+            {rtmpUrl ? (
+                <NodePlayer
+                    key={`video-${retryKey}`}
+                    style={styles.backgroundStream}
+                    url={rtmpUrl}
+                    bufferTime={300}
+                    maxBufferTime={1000}
+                    autoplay={true}
+                    onEvent={(code, msg) => {
+                        console.log("NodePlayer event=" + code +" msg="+ msg);
+                        if (code === 1001 || code === 1003) {
+                            setIsLoading(false); // Connected and playing
+                        }
+                        if (code === 1004 || code === 1005 || code === 1006) {
+                            setIsLoading(true);
+                            handleVideoError(msg);
+                        }
+                    }}
+                />
+            ) : null}
             {isLoading && (
                 <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
                     <ActivityIndicator size="large" color={COLORS.primary} />

@@ -45,4 +45,21 @@ declare module 'react-native-nodemediaclient' {
     startPreview(): void;
     stopPreview(): void;
   }
+
+  export interface NodePlayerProps {
+    style?: ViewStyle;
+    url: string;
+    bufferTime?: number;
+    maxBufferTime?: number;
+    autoplay?: boolean;
+    scaleMode?: number;
+    renderType?: "SURFACEVIEW" | "TEXTUREVIEW";
+    onEvent?: (code: number, msg: string) => void;
+  }
+
+  export class NodePlayer extends React.Component<NodePlayerProps> {
+    start(): void;
+    stop(): void;
+    pause(): void;
+  }
 }

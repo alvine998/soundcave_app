@@ -98,7 +98,9 @@ type RootStackParamList = {
     streamer: string;
     viewerCount: number;
     cover: string;
+    thumbnail: string;
     avatar: string;
+    playbackUrl?: string;
   };
   GoLive: undefined;
 };

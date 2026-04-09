@@ -71,6 +71,7 @@ type RootStackParamList = {
         streamer: string;
         viewerCount: number;
         cover: string;
+        thumbnail: string;
         avatar: string;
         playbackUrl?: string;
     };
@@ -113,6 +114,7 @@ type LiveStream = {
     streamer: string;
     viewerCount: number;
     cover: string;
+    thumbnail: string;
     avatar: string;
     playbackUrl?: string;
 };
@@ -435,7 +437,7 @@ const LiveStreamCard = React.memo<{
                 onPress={onPress}
             >
                 <Image
-                    source={{ uri: stream.cover }}
+                    source={{ uri: stream.thumbnail || stream.cover }}
                     style={styles.liveCover}
                     resizeMode="cover"
                 />
@@ -548,6 +550,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             viewerCount: apiData.viewer_count || 0,
             avatar: apiData.artist?.profile_image || FALLBACK_SONG_COVER,
             cover: apiData.artist?.profile_image || FALLBACK_SONG_COVER,
+            thumbnail: apiData.thumbnail || apiData.cover || FALLBACK_SONG_COVER,
             // Fix: Override 'localhost' from backend with actual server IP
             playbackUrl: apiData.playback_url ? apiData.playback_url.replace('localhost', '154.26.137.37') : undefined,
         };
@@ -1344,6 +1347,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                                     streamer: stream.streamer,
                                                     viewerCount: stream.viewerCount,
                                                     cover: stream.cover,
+                                                    thumbnail: stream.thumbnail,
                                                     avatar: stream.avatar,
                                                     playbackUrl: stream.playbackUrl,
                                                 });

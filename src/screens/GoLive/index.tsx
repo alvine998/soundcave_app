@@ -185,11 +185,29 @@ const GoLiveScreen: React.FC = () => {
   useEffect(() => {
     if (isPreparingToStream && ingestUrl) {
         setIsPreparingToStream(false);
+        // Slightly longer delay to ensure native surface is ready on real devices
         setTimeout(() => {
             if (publisherRef.current) {
-                publisherRef.current.start();
+                try {
+                    // Safe practice: ensure any lingering broadcast is stopped
+                    publisherRef.current.stop();
+                    
+                    // Brief pause between stop and start to allow native cleanup
+                    setTimeout(() => {
+                        if (publisherRef.current) {
+                            console.log('Triggering native broadcast start...');
+                            publisherRef.current.start();
+                        }
+                    }, 150);
+                } catch (e) {
+                    console.error('Failure in native publisher sequence:', e);
+                    setIsStarting(false);
+                    Alert.alert('Broadcast Error', 'Could not initialize camera for broadcast.');
+                }
+            } else {
+                setIsStarting(false);
             }
-        }, 200);
+        }, 300);
     }
   }, [isPreparingToStream, ingestUrl]);
 
