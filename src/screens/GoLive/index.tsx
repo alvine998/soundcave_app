@@ -56,6 +56,7 @@ const GoLiveScreen: React.FC = () => {
   const [isStarting, setIsStarting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isPreparingToStream, setIsPreparingToStream] = useState(false);
+  const [isWaitingForLive, setIsWaitingForLive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [videoPosition, setVideoPosition] = useState<'front' | 'back'>('front');
   const [streamTitle, setStreamTitle] = useState('');
@@ -211,6 +212,46 @@ const GoLiveScreen: React.FC = () => {
     }
   }, [isPreparingToStream, ingestUrl]);
 
+  // Poll until stream goes live, then start publisher
+  const waitForLive = async (streamId: number) => {
+    let pollCount = 0;
+    const maxPolls = 60; // Max 3 minutes (60 * 3s)
+    const pollInterval = 3000; // 3 seconds
+
+    while (pollCount < maxPolls) {
+      try {
+        const api = await getApiInstance();
+        const response = await api.get(`/api/artist-streams/${streamId}`);
+        const { data } = response.data;
+
+        console.log(`[Poll ${pollCount + 1}] Stream status: ${data?.status}`);
+
+        if (data?.status === 'live') {
+          console.log('Stream is LIVE! Starting publisher...');
+          setIsWaitingForLive(false);
+          setIsPreparingToStream(true);
+          return true;
+        }
+
+        // Not live yet, wait before polling again
+        await new Promise(r => setTimeout(r, pollInterval));
+        pollCount++;
+      } catch (error) {
+        console.error(`Poll error (attempt ${pollCount + 1}):`, error);
+        // Continue polling even on error
+        await new Promise(r => setTimeout(r, pollInterval));
+        pollCount++;
+      }
+    }
+
+    // Timeout reached
+    console.error('Polling timeout: stream did not go live within 3 minutes');
+    Alert.alert('Timeout', 'Stream did not go live. Please try again.');
+    setIsWaitingForLive(false);
+    setIsStarting(false);
+    return false;
+  };
+
   const handleStartStream = async () => {
     if (!streamTitle.trim()) {
       Alert.alert('Required', 'Please enter a title for your stream');
@@ -228,6 +269,7 @@ const GoLiveScreen: React.FC = () => {
                 description: streamDescription || streamTitle,
                 ...(streamThumbnail ? { thumbnail: streamThumbnail } : {}),
                 stream_url: 'rtmp://154.26.137.37:1935/live',
+                live_from: 'phone',
                 ...(streamType === 'scheduled' ? { is_scheduled: true, scheduled_at: scheduledDate.toISOString() } : {}),
             });
         } catch (err: any) {
@@ -242,6 +284,7 @@ const GoLiveScreen: React.FC = () => {
                     description: streamDescription || streamTitle,
                     ...(streamThumbnail ? { thumbnail: streamThumbnail } : {}),
                     stream_url: 'rtmp://154.26.137.37:1935/live',
+                    live_from: 'phone',
                     ...(streamType === 'scheduled' ? { is_scheduled: true, scheduled_at: scheduledDate.toISOString() } : {}),
                 });
             } else {
@@ -258,9 +301,22 @@ const GoLiveScreen: React.FC = () => {
 
         if (newIngestUrl) {
             console.log('Stream registered with ingest url:', newIngestUrl);
-            setStreamId(response.data.data.id);
+            const newStreamId = response.data.data.id;
+            setStreamId(newStreamId);
             setIngestUrl(newIngestUrl);
-            setIsPreparingToStream(true); // Triggers the useEffect
+            
+            // Start polling for stream to go live
+            setIsWaitingForLive(true);
+            const isLive = await waitForLive(newStreamId);
+            
+            if (!isLive) {
+              // Polling failed or timed out, clean up
+              try {
+                await api.post(`/api/artist-streams/end/${newStreamId}`);
+              } catch (e) {
+                console.error('Error cleaning up failed stream:', e);
+              }
+            }
         } else {
             throw new Error('No ingest_url returned from API');
         }
@@ -431,117 +487,130 @@ const GoLiveScreen: React.FC = () => {
 
         <View style={styles.content}>
           {!isStreaming ? (
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={styles.setupContainer}
-            >
-              <ScrollView 
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.setupScroll}
-              >
-                {/* Date Picker Modal */}
-                <DatePicker
-                  modal
-                  open={showDatePicker}
-                  date={scheduledDate}
-                  minimumDate={new Date()}
-                  onConfirm={(date) => {
-                    setShowDatePicker(false);
-                    setScheduledDate(date);
-                  }}
-                  onCancel={() => {
-                    setShowDatePicker(false);
-                  }}
-                  theme="dark"
-                  title="Schedule Stream"
-                  confirmText="Set Schedule"
-                />
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.titleInput}
-                    placeholder="Stream title *"
-                    placeholderTextColor="rgba(255,255,255,0.5)"
-                    value={streamTitle}
-                    onChangeText={setStreamTitle}
-                    maxLength={50}
-                  />
-                </View>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={[styles.titleInput, styles.descriptionInput]}
-                    placeholder="Description (optional)"
-                    placeholderTextColor="rgba(255,255,255,0.5)"
-                    value={streamDescription}
-                    onChangeText={setStreamDescription}
-                    maxLength={200}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </View>
-
-                {/* Stream Type Selector */}
-                <View style={styles.streamTypeContainer}>
-                  <TouchableOpacity 
-                    style={[styles.typeButton, streamType === 'now' && styles.activeTypeButton]}
-                    onPress={() => setStreamType('now')}
-                  >
-                    <FontAwesome6 name="bolt" size={14} color={streamType === 'now' ? '#fff' : 'rgba(255,255,255,0.5)'} />
-                    <Text style={[styles.typeButtonText, streamType === 'now' && styles.activeTypeButtonText]}>Go Live Now</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.typeButton, streamType === 'scheduled' && styles.activeTypeButton]}
-                    onPress={() => setStreamType('scheduled')}
-                  >
-                    <FontAwesome6 name="calendar-days" size={14} color={streamType === 'scheduled' ? '#fff' : 'rgba(255,255,255,0.5)'} />
-                    <Text style={[styles.typeButtonText, streamType === 'scheduled' && styles.activeTypeButtonText]}>Schedule</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {streamType === 'scheduled' && (
-                  <View style={styles.scheduleInfoContainer}>
-                    <Text style={styles.scheduleLabel}>Schedule for:</Text>
-                    <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowDatePicker(true)}>
-                      <FontAwesome6 name="clock" size={16} color={COLORS.primary} />
-                      <Text style={styles.dateText}>{scheduledDate.toLocaleString()}</Text>
-                      <FontAwesome6 name="chevron-right" size={12} color="rgba(255,255,255,0.3)" />
-                    </TouchableOpacity>
-                    <Text style={styles.scheduleHint}>Stream will be visible in your profile</Text>
+            <>
+              {isWaitingForLive ? (
+                <View style={styles.waitingContainer}>
+                  <View style={styles.waitingContent}>
+                    <ActivityIndicator size="large" color={COLORS.primary} style={{ marginBottom: normalize(16) }} />
+                    <Text style={styles.waitingTitle}>Starting Your Stream...</Text>
+                    <Text style={styles.waitingSubtitle}>Please wait while we prepare your broadcast</Text>
+                    <View style={styles.pulseAnimation} />
                   </View>
-                )}
-                <View style={styles.thumbnailContainer}>
-                  <Text style={styles.thumbnailLabel}>Stream Thumbnail</Text>
-                  <TouchableOpacity 
-                    style={styles.thumbnailButton} 
-                    onPress={handleSelectThumbnail}
-                    activeOpacity={0.8}
-                    disabled={isUploading}
-                  >
-                    {streamThumbnail ? (
-                      <View style={styles.thumbnailImageWrapper}>
-                        <Image source={{ uri: streamThumbnail }} style={styles.thumbnailImage} />
-                        <View style={styles.changeThumbnailBadge}>
-                          <FontAwesome6 name="camera" size={12} color="#fff" />
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={styles.thumbnailPlaceholder}>
-                        <FontAwesome6 name="image" size={32} color="rgba(255,255,255,0.3)" />
-                        <Text style={styles.thumbnailPlaceholderText}>Upload Thumbnail</Text>
-                        <Text style={styles.thumbnailPlaceholderSubtext}>1280 x 720 (16:9)</Text>
-                      </View>
-                    )}
-                    
-                    {isUploading && (
-                      <View style={styles.uploadOverlay}>
-                        <ActivityIndicator color={COLORS.primary} size="small" />
-                        <Text style={styles.uploadText}>Uploading...</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
                 </View>
-              </ScrollView>
-              <Text style={styles.hintText}>Ready to broadcast to SoundCave?</Text>
-            </KeyboardAvoidingView>
+              ) : (
+                <KeyboardAvoidingView 
+                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                  style={styles.setupContainer}
+                >
+                  <ScrollView 
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.setupScroll}
+                  >
+                    {/* Date Picker Modal */}
+                    <DatePicker
+                      modal
+                      open={showDatePicker}
+                      date={scheduledDate}
+                      minimumDate={new Date()}
+                      onConfirm={(date) => {
+                        setShowDatePicker(false);
+                        setScheduledDate(date);
+                      }}
+                      onCancel={() => {
+                        setShowDatePicker(false);
+                      }}
+                      theme="dark"
+                      title="Schedule Stream"
+                      confirmText="Set Schedule"
+                    />
+                    <View style={styles.inputWrapper}>
+                      <TextInput
+                        style={styles.titleInput}
+                        placeholder="Stream title *"
+                        placeholderTextColor="rgba(255,255,255,0.5)"
+                        value={streamTitle}
+                        onChangeText={setStreamTitle}
+                        maxLength={50}
+                      />
+                    </View>
+                    <View style={styles.inputWrapper}>
+                      <TextInput
+                        style={[styles.titleInput, styles.descriptionInput]}
+                        placeholder="Description (optional)"
+                        placeholderTextColor="rgba(255,255,255,0.5)"
+                        value={streamDescription}
+                        onChangeText={setStreamDescription}
+                        maxLength={200}
+                        multiline
+                        numberOfLines={3}
+                      />
+                    </View>
+
+                    {/* Stream Type Selector */}
+                    <View style={styles.streamTypeContainer}>
+                      <TouchableOpacity 
+                        style={[styles.typeButton, streamType === 'now' && styles.activeTypeButton]}
+                        onPress={() => setStreamType('now')}
+                      >
+                        <FontAwesome6 name="bolt" size={14} color={streamType === 'now' ? '#fff' : 'rgba(255,255,255,0.5)'} />
+                        <Text style={[styles.typeButtonText, streamType === 'now' && styles.activeTypeButtonText]}>Go Live Now</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.typeButton, streamType === 'scheduled' && styles.activeTypeButton]}
+                        onPress={() => setStreamType('scheduled')}
+                      >
+                        <FontAwesome6 name="calendar-days" size={14} color={streamType === 'scheduled' ? '#fff' : 'rgba(255,255,255,0.5)'} />
+                        <Text style={[styles.typeButtonText, streamType === 'scheduled' && styles.activeTypeButtonText]}>Schedule</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {streamType === 'scheduled' && (
+                      <View style={styles.scheduleInfoContainer}>
+                        <Text style={styles.scheduleLabel}>Schedule for:</Text>
+                        <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowDatePicker(true)}>
+                          <FontAwesome6 name="clock" size={16} color={COLORS.primary} />
+                          <Text style={styles.dateText}>{scheduledDate.toLocaleString()}</Text>
+                          <FontAwesome6 name="chevron-right" size={12} color="rgba(255,255,255,0.3)" />
+                        </TouchableOpacity>
+                        <Text style={styles.scheduleHint}>Stream will be visible in your profile</Text>
+                      </View>
+                    )}
+                    <View style={styles.thumbnailContainer}>
+                      <Text style={styles.thumbnailLabel}>Stream Thumbnail</Text>
+                      <TouchableOpacity 
+                        style={styles.thumbnailButton} 
+                        onPress={handleSelectThumbnail}
+                        activeOpacity={0.8}
+                        disabled={isUploading}
+                      >
+                        {streamThumbnail ? (
+                          <View style={styles.thumbnailImageWrapper}>
+                            <Image source={{ uri: streamThumbnail }} style={styles.thumbnailImage} />
+                            <View style={styles.changeThumbnailBadge}>
+                              <FontAwesome6 name="camera" size={12} color="#fff" />
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={styles.thumbnailPlaceholder}>
+                            <FontAwesome6 name="image" size={32} color="rgba(255,255,255,0.3)" />
+                            <Text style={styles.thumbnailPlaceholderText}>Upload Thumbnail</Text>
+                            <Text style={styles.thumbnailPlaceholderSubtext}>1280 x 720 (16:9)</Text>
+                          </View>
+                        )}
+                        
+                        {isUploading && (
+                          <View style={styles.uploadOverlay}>
+                            <ActivityIndicator color={COLORS.primary} size="small" />
+                            <Text style={styles.uploadText}>Uploading...</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
+                  <Text style={styles.hintText}>Ready to broadcast to SoundCave?</Text>
+                </KeyboardAvoidingView>
+              )}
+            </>
           ) : (
             <View style={styles.streamingOverlay}>
               <FlatList
@@ -577,13 +646,18 @@ const GoLiveScreen: React.FC = () => {
             style={[
               styles.streamButton, 
               isStreaming ? styles.stopButton : styles.startButton,
-              isStarting && { opacity: 0.7 }
+              (isStarting || isWaitingForLive) && { opacity: 0.7 }
             ]} 
             onPress={isStreaming ? handleStopStream : handleStartStream}
-            disabled={isStarting}
+            disabled={isStarting || isWaitingForLive}
           >
-            {isStarting ? (
-              <ActivityIndicator color="#fff" />
+            {isStarting || isWaitingForLive ? (
+              <View style={styles.buttonContent}>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.streamButtonText}>
+                  {isWaitingForLive ? 'WAITING FOR LIVE...' : 'STARTING...'}
+                </Text>
+              </View>
             ) : (
               <View style={styles.buttonContent}>
                 <FontAwesome6 
@@ -945,6 +1019,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  waitingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  waitingContent: {
+    alignItems: 'center',
+    gap: normalize(8),
+  },
+  waitingTitle: {
+    color: '#fff',
+    fontSize: normalize(18),
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  waitingSubtitle: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: normalize(14),
+    textAlign: 'center',
+    marginTop: normalize(4),
+  },
+  pulseAnimation: {
+    width: normalize(80),
+    height: normalize(80),
+    borderRadius: normalize(40),
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    marginTop: normalize(20),
   },
 });
 

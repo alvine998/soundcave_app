@@ -74,6 +74,7 @@ type RootStackParamList = {
         thumbnail: string;
         avatar: string;
         playbackUrl?: string;
+        liveFrom?: string;
     };
 };
 
@@ -117,6 +118,7 @@ type LiveStream = {
     thumbnail: string;
     avatar: string;
     playbackUrl?: string;
+    liveFrom?: string;
 };
 
 
@@ -553,6 +555,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
             thumbnail: apiData.thumbnail || apiData.cover || FALLBACK_SONG_COVER,
             // Fix: Override 'localhost' from backend with actual server IP
             playbackUrl: apiData.playback_url ? apiData.playback_url.replace('localhost', '154.26.137.37') : undefined,
+            liveFrom: apiData.live_from || 'phone',
         };
     }, []);
 
@@ -1350,6 +1353,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ profile }) => {
                                                     thumbnail: stream.thumbnail,
                                                     avatar: stream.avatar,
                                                     playbackUrl: stream.playbackUrl,
+                                                    liveFrom: stream.liveFrom,
                                                 });
                                             }}
                                         />
