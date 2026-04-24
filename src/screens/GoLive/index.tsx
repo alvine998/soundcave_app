@@ -436,6 +436,14 @@ const GoLiveScreen: React.FC = () => {
               if (code === 2001) {
                 setIsStreaming(true);
                 setIsStarting(false);
+                // RTMP connection established — mark stream as live on backend
+                if (streamId) {
+                  getApiInstance().then(api => {
+                    api.post(`/api/artist-streams/${streamId}/mark-live`)
+                      .then(() => console.log('Stream marked as live'))
+                      .catch((e: any) => console.error('mark-live error:', e));
+                  });
+                }
               } else if (code === 2002 || code === 2004) {
                 setIsStreaming(false);
                 setIsStarting(false);
