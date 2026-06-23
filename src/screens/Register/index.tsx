@@ -15,6 +15,7 @@ import { COLORS } from '../../config/color';
 import { saveUserProfile, UserProfile } from '../../storage/userStorage';
 import { getPublicApiInstance } from '../../utils/api';
 import { CONFIG } from '../../config';
+import { signInWithGoogle, handleGoogleAuth } from '../../utils/googleAuth';
 
 type RegisterScreenProps = {
   onBack: () => void;
@@ -34,6 +35,38 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
+
+  const handleGoogleRegister = async () => {
+    try {
+      setSubmitting(true);
+      const googleUserInfo = await signInWithGoogle();
+      if (!googleUserInfo) {
+        setSubmitting(false);
+        return;
+      }
+
+      const result = await handleGoogleAuth(googleUserInfo, true);
+      if (result.success && result.userProfile) {
+        showToast({
+          message: result.message,
+          type: 'success',
+        });
+        onLogin();
+      } else {
+        showToast({
+          message: result.message,
+          type: 'error',
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        message: error.message || 'Google registration failed',
+        type: 'error',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
@@ -216,8 +249,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({
 
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.googleButton}
-          onPress={onGoogle}>
+          style={[styles.googleButton, submitting && styles.googleButtonDisabled]}
+          onPress={handleGoogleRegister}
+          disabled={submitting}>
           <Icon iconStyle="brand" name="google" size={normalize(18)} color="#EA4335" />
           <Text style={styles.googleText}>Register with Google</Text>
         </TouchableOpacity>
@@ -338,6 +372,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: normalize(8),
     backgroundColor: '#fff',
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
   },
   googleText: {
     color: COLORS.dark,

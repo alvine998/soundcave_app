@@ -35,6 +35,7 @@ import {
 import { clearToken } from './src/storage/tokenStorage';
 import { resetApiInstance } from './src/utils/api';
 import { navigationRef } from './src/utils/navigationService';
+import { configureGoogleSignIn } from './src/utils/googleAuth';
 import ArtistDetailScreen from './src/screens/ArtistDetail';
 import LiveStreamDetailScreen from './src/screens/LiveStreamDetail';
 import GoLiveScreen from './src/screens/GoLive';
@@ -118,6 +119,9 @@ function App() {
 
   useEffect(() => {
     const bootstrapProfile = async () => {
+      // Initialize Google Sign-In
+      configureGoogleSignIn();
+
       const storedProfile = await getUserProfile();
       if (storedProfile) {
         setProfile(storedProfile);

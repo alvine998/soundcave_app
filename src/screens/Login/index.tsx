@@ -15,6 +15,7 @@ import { COLORS } from '../../config/color';
 import { saveUserProfile, UserProfile } from '../../storage/userStorage';
 import { saveToken } from '../../storage/tokenStorage';
 import { getPublicApiInstance } from '../../utils/api';
+import { signInWithGoogle, handleGoogleAuth } from '../../utils/googleAuth';
 
 type LoginScreenProps = {
   onBack: () => void;
@@ -33,6 +34,38 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
+
+  const handleGoogleLogin = async () => {
+    try {
+      setSubmitting(true);
+      const googleUserInfo = await signInWithGoogle();
+      if (!googleUserInfo) {
+        setSubmitting(false);
+        return;
+      }
+
+      const result = await handleGoogleAuth(googleUserInfo, false);
+      if (result.success && result.userProfile) {
+        showToast({
+          message: result.message,
+          type: 'success',
+        });
+        onSuccess(result.userProfile);
+      } else {
+        showToast({
+          message: result.message,
+          type: 'error',
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        message: error.message || 'Google login failed',
+        type: 'error',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -161,10 +194,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           <Text style={styles.secondaryText}>Forgot password?</Text>
         </TouchableOpacity> */}
 
-        {/* <TouchableOpacity
+        <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.googleButton}
-          onPress={onGoogle}
+          style={[styles.googleButton, submitting && styles.googleButtonDisabled]}
+          onPress={handleGoogleLogin}
+          disabled={submitting}
         >
           <Icon
             iconStyle="brand"
@@ -173,7 +207,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             color="#EA4335"
           />
           <Text style={styles.googleText}>Login with Google</Text>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         <TouchableOpacity activeOpacity={0.85} onPress={onRegister}>
           <Text style={styles.switchText}>
@@ -267,6 +301,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: normalize(8),
     backgroundColor: '#fff',
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
   },
   googleText: {
     color: COLORS.dark,
