@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StatusBar } from 'react-native';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
 
@@ -35,7 +35,7 @@ import {
 import { clearToken } from './src/storage/tokenStorage';
 import { resetApiInstance } from './src/utils/api';
 import { navigationRef } from './src/utils/navigationService';
-import { configureGoogleSignIn } from './src/utils/googleAuth';
+import { configureGoogleSignIn, signOutGoogle } from './src/utils/googleAuth';
 import ArtistDetailScreen from './src/screens/ArtistDetail';
 import LiveStreamDetailScreen from './src/screens/LiveStreamDetail';
 import GoLiveScreen from './src/screens/GoLive';
@@ -157,11 +157,10 @@ function App() {
     });
   }, [navReady, profile]);
 
-  const handleGoogleAuth = () => {
-    Alert.alert('Coming Soon', 'Google authentication will be available soon.');
-  };
-
   const handleLogout = async () => {
+    try {
+      await signOutGoogle();
+    } catch {}
     await clearUserProfile();
     await clearToken();
     resetApiInstance();
@@ -242,7 +241,6 @@ function App() {
                       {...props}
                       onBack={() => props.navigation.goBack()}
                       onRegister={() => props.navigation.navigate('Register')}
-                      onGoogle={handleGoogleAuth}
                       onSuccess={userProfile => {
                         setProfile(userProfile);
                         props.navigation.reset({
@@ -267,7 +265,6 @@ function App() {
                       {...props}
                       onBack={() => props.navigation.goBack()}
                       onLogin={() => props.navigation.navigate('Login')}
-                      onGoogle={handleGoogleAuth}
                     />
                   )}
                 </Stack.Screen>

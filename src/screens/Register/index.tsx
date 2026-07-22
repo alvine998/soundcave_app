@@ -20,13 +20,11 @@ import { signInWithGoogle, handleGoogleAuth } from '../../utils/googleAuth';
 type RegisterScreenProps = {
   onBack: () => void;
   onLogin: () => void;
-  onGoogle: () => void;
 };
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({
   onBack,
   onLogin,
-  onGoogle,
 }) => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
