@@ -1,8 +1,9 @@
 # Deskripsi Aplikasi SoundCave - Google Play Store (Indonesian)
 
-> **STATUS: REVISI v2** — Versi sebelumnya ditolak karena deskripsi tidak cukup menjelaskan
-> penggunaan Layanan Latar Depan. Versi ini mengintegrasikan penjelasan foreground service
-> langsung ke dalam deskripsi fitur utama (bukan hanya di bagian izin).
+> **STATUS: REVISI v3** - FIX FOREGROUND_SERVICE
+> Manifest sekarang HANYA declare FOREGROUND_SERVICE + FOREGROUND_SERVICE_MEDIA_PLAYBACK
+> (camera/mic foreground types dihapus karena NodeMediaClient tidak implement foreground service)
+> Video baru HANYA perlu demo music playback foreground service.
 
 Gunakan deskripsi berikut di Google Play Console > Store listing > Description:
 
@@ -30,18 +31,14 @@ FITUR UTAMA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🎵 Pemutaran Musik di Latar Belakang
-SoundCave menggunakan layanan latar depan Android (foreground service) untuk memutar musik secara terus-menerus. Musik tetap berjalan saat Anda:
+SoundCave menggunakan layanan latar depan Android (foreground service) jenis Pemutaran Media (mediaPlayback) untuk memutar musik secara terus-menerus. Musik tetap berjalan saat Anda:
 • Beralih ke aplikasi lain
 • Mengunci layar perangkat
 • Meminimalkan aplikasi
-Selama pemutaran berlangsung, notifikasi persisten ditampilkan di status bar dengan kontrol pemutaran lengkap (play, pause, lagu berikutnya). Layanan ini hanya aktif saat Anda memutar musik dan berhenti ketika Anda menjeda atau menutup pemutar.
+Selama pemutaran berlangsung, notifikasi persisten ditampilkan di status bar dengan kontrol pemutaran lengkap (play, pause, lagu berikutnya). Layanan ini hanya aktif saat Anda memutar musik dan berhenti ketika Anda menjeda atau menutup pemutar. Ini adalah fitur inti aplikasi.
 
 🎥 Siaran Langsung (Live Streaming)
-Fitur Go Live menggunakan layanan latar depan kamera dan mikrofon Android untuk menjaga koneksi kamera dan audio selama siaran berlangsung. Selama siaran aktif:
-• Notifikasi persisten "Siaran Sedang Berlangsung" ditampilkan
-• Siaran tidak terputus meskipun Anda berinteraksi dengan UI aplikasi
-• Kamera dan mikrofon tetap terhubung ke server streaming
-Layanan ini hanya aktif saat Anda memulai siaran dan berhenti secara otomatis saat Anda mengakhiri siaran.
+Fitur Go Live memungkinkan Anda menyiarkan video langsung via RTMP ke penonton. Kamera dan mikrofon digunakan hanya saat Anda berada di dalam layar siaran (foreground) dan meminta izin runtime CAMERA & RECORD_AUDIO. Siaran berjalan di foreground dan akan berhenti jika Anda keluar dari layar siaran.
 
 🎙️ Podcast & Konten Audio
 • Dengarkan podcast populer dari berbagai topik
@@ -51,15 +48,14 @@ Layanan ini hanya aktif saat Anda memulai siaran dan berhenti secara otomatis sa
 
 🎙️ Solusi Musik untuk Bisnis
 Khusus untuk UMKM, Kafe, Restoran, dan Hotel:
-• Musik latar belakang (background music) yang diputar terus-menerus menggunakan layanan latar depan
+• Musik latar belakang (background music) yang diputar terus-menerus menggunakan layanan latar depan pemutaran media
 • Musik berlisensi penuh — tanpa khawatir pelanggaran hak cipta
 • Playlist yang dikurasi sesuai ambience bisnis
 • Akses mudah dari berbagai perangkat
 
 📱 Kontrol via Notifikasi
 • Kontrol pemutaran musik dari notifikasi tanpa membuka aplikasi
-• Status siaran langsung terlihat di bar notifikasi
-• Hentikan layanan kapan saja dengan menjeda musik atau mengakhiri siaran
+• Hentikan musik kapan saja dengan menjeda dari notifikasi atau menutup pemutar
 
 💬 Fitur Sosial
 • Buat dan bagikan playlist dengan teman
@@ -97,25 +93,22 @@ MENGAPA MEMILIH SOUNDCAVE?
 ✅ Dukungan Lokal - Tim dukungan dalam bahasa Indonesia
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LAYANAN LATAR DEPAN (FOREGROUND SERVICES)
+LAYANAN LATAR DEPAN (FOREGROUND SERVICE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SoundCave menggunakan tiga jenis layanan latar depan Android yang merupakan fitur inti aplikasi:
+SoundCave menggunakan SATU jenis layanan latar depan Android sebagai fitur inti:
 
-🎵 1. Pemutaran Media (mediaPlayback)
-Digunakan untuk memutar musik dan podcast secara berkelanjutan. Saat aktif, notifikasi persisten ditampilkan dengan kontrol play/pause/skip. Layanan dimulai saat pengguna menekan tombol Play dan berhenti saat pengguna menjeda atau menutup pemutar.
+🎵 Pemutaran Media (mediaPlayback)
+Digunakan untuk memutar musik dan podcast secara berkelanjutan saat aplikasi di latar belakang atau layar terkunci. Saat aktif, notifikasi persisten ditampilkan dengan kontrol play/pause/skip. Layanan dimulai saat pengguna menekan Play dan berhenti saat pengguna menjeda atau menutup pemutar.
 
-📷 2. Kamera (camera)
-Digunakan saat pengguna memulai siaran langsung melalui fitur Go Live. Layanan ini menjaga koneksi kamera ke server RTMP agar siaran tidak terputus. Notifikasi persisten menampilkan status "Siaran Aktif". Layanan berhenti saat pengguna mengakhiri siaran.
-
-🎙️ 3. Mikrofon (microphone)
-Berjalan bersamaan dengan layanan kamera saat siaran langsung aktif. Menjaga koneksi audio ke server streaming. Berhenti bersamaan saat siaran diakhiri.
-
-Semua layanan latar depan ini:
+Detail izin:
+• FOREGROUND_SERVICE + FOREGROUND_SERVICE_MEDIA_PLAYBACK
 • Hanya dimulai atas permintaan pengguna (user-initiated)
 • Selalu menampilkan notifikasi persisten yang jelas
-• Dapat dihentikan kapan saja oleh pengguna
-• Merupakan fitur inti yang tidak dapat berfungsi tanpa layanan ini
+• Dapat dihentikan kapan saja oleh pengguna (pause/stop)
+• Tanpa layanan ini, musik akan berhenti saat aplikasi di latar belakang — fitur inti menjadi tidak berfungsi
+
+Izin CAMERA & RECORD_AUDIO digunakan untuk fitur Go Live (preview & siaran foreground) melalui izin runtime, bukan melalui foreground service type camera/microphone.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PRIVASI & KEAMANAN
@@ -150,46 +143,9 @@ Streaming musik, podcast, dan konten audio berkualitas tinggi. Solusi musik lega
 
 ---
 
-## Tautan Relevan untuk Diisi:
+## Catatan v3:
 
-Dalam Google Play Console, tambahkan juga:
-
-**Website**: https://www.soundcave.id (jika ada)
-
-**Email Kontak**: support@soundcave.id
-
-**Kebijakan Privasi**: [URL kebijakan privasi Anda]
-
-**Syarat & Ketentuan**: [URL T&C Anda]
-
----
-
-## Cara Mengupdate di Google Play Console:
-
-1. Buka Google Play Console
-2. Pilih aplikasi SoundCave
-3. Klik **Store listing**
-4. Scroll ke bagian **Description**
-5. Hapus deskripsi lama
-6. Tempel deskripsi baru di atas (bagian "Deskripsi Lengkap")
-7. Klik **Save**
-8. Klik **Review and update** untuk publish perubahan
-
----
-
-## Catatan:
-
-✅ Deskripsi ini menjelaskan:
-- Asal usul Soundcave (2024, respons terhadap kebutuhan bisnis Indonesia)
-- Fitur musik streaming utama
-- Dukungan untuk UMKM, kafe, restoran, hotel
-- Fitur siaran langsung yang unik
-- Penjelasan foreground services (untuk mematuhi kebijakan Google Play)
-- Privasi dan keamanan
-- Informasi kontak dukungan
-
-✅ Menggunakan bahasa Indonesia yang profesional
-✅ Fokus pada nilai unik produk Anda
-✅ Mematuhi kebutuhan Google Play
-✅ Ramah untuk bisnis dan pengguna personal
-```
+✅ Manifest sekarang HANYA declare mediaPlayback (1 service type)
+✅ Deskripsi hanya klaim 1 foreground service
+✅ Go Live dijelaskan sebagai fitur foreground biasa (bukan foreground service)
+✅ Video demo baru HANYA perlu: play musik -> HOME -> notifikasi terlihat -> pause dari notifikasi

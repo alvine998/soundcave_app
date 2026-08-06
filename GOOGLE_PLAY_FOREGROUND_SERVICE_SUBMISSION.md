@@ -1,171 +1,127 @@
-# Google Play Console: Foreground Service Permission - Panduan Revisi v2
+# Google Play Console: Foreground Service Permission - Panduan Revisi v3
 
-## Status: DITOLAK KEDUA KALI
+## Status: FIX ROOT CAUSE
 
-**Alasan penolakan**: Video dan deskripsi dianggap tidak cukup menunjukkan ketergantungan fitur inti pada izin Layanan Latar Depan.
+**Penolakan sebelumnya**: Google menilai video & deskripsi tidak cukup.
+**Root cause sebenarnya**: Manifest declare 3 foreground service types (mediaPlayback, camera, microphone)
+tapi implementasi native HANYA ada 1: mediaPlayback via `react-native-music-control`.
+`react-native-nodemediaclient` TIDAK membuat foreground service — hanya preview View.
 
-**Yang perlu Anda lakukan**:
-1. Rekam ulang video (panduan di bawah) — dengan zoom pada notifikasi persisten
-2. Upload ke YouTube sebagai UNLISTED
-3. Perbarui deskripsi di Play Store (salin dari file GOOGLE_PLAY_DESCRIPTION_INDONESIAN.md)
-4. Submit teks pernyataan baru ke Play Console dengan link video baru
-5. Sertakan kredensial pengujian
+Google mendeteksi mismatch: declare camera/mic foreground service tapi tidak ada service type camera/mic di APK.
+=> ditolak.
 
----
-
-## Part 1: KENAPA VIDEO SEBELUMNYA DITOLAK
-
-Google menolak karena video tidak cukup jelas menunjukkan:
-- Notifikasi persisten yang **terbaca jelas** (harus zoom in)
-- Fitur tetap berjalan saat app **diminimalkan** (tekan HOME, bukan back)
-- Audio musik **terdengar** dalam rekaman layar
-
-Bukan yang diperlukan: musik berputar di dalam app saja.
-Yang diperlukan: musik berputar → tekan HOME → notifikasi TERLIHAT JELAS di layar → musik masih terdengar.
+**FIX v3**:
+- AndroidManifest.xml: HAPUS `FOREGROUND_SERVICE_CAMERA` + `FOREGROUND_SERVICE_MICROPHONE`
+- Sisa: `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` saja
+- Deskripsi Play Store: hanya klaim 1 service (mediaPlayback)
+- Go Live: jelaskan sebagai fitur foreground biasa (izin CAMERA/RECORD_AUDIO runtime)
+- Video baru: HANYA demo music playback foreground service (lebih simple, lebih jelas)
 
 ---
 
-## Part 2: Script Video Wajib (2-3 menit)
+## Part 1: Perubahan Manifest (SUDAH DILAKUKAN)
 
-### SCENE 1: Pemutaran Musik di Latar Belakang (0:00 – 1:10)
+File: `android/app/src/main/AndroidManifest.xml`
 
-**0:00–0:20** — Buka aplikasi, navigasi ke daftar lagu
-- Tunjukkan: layar beranda dengan daftar lagu
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+```
 
-**0:20–0:40** — Pilih dan putar satu lagu
-- Tunjukkan: musik mulai diputar
-- **WAJIB**: Tarik status bar ke bawah — ZOOM IN ke notifikasi
-- Tunjukkan: nama lagu, nama artis, tombol play/pause/skip di notifikasi
-- Narasi: "Notifikasi ini menunjukkan layanan latar depan pemutaran media sedang aktif"
-
-**0:40–1:00** — Tekan tombol HOME (bukan Back)
-- Tunjukkan: layar home Android dengan notifikasi masih terlihat di status bar
-- **WAJIB**: Tarik status bar ke bawah untuk menampilkan notifikasi secara penuh
-- Musik harus masih terdengar dalam rekaman
-- Narasi: "Aplikasi sudah diminimalkan tetapi musik tetap berjalan. Ini karena SoundCave menggunakan layanan latar depan pemutaran media Android."
-
-**1:00–1:10** — Tap tombol pause di NOTIFIKASI (tanpa membuka app)
-- Tunjukkan: musik berhenti
-- Narasi: "Pengguna bisa mengontrol pemutaran langsung dari notifikasi"
-
-### SCENE 2: Siaran Langsung (1:10 – 2:30)
-
-**1:10–1:30** — Buka app, navigasi ke fitur "Go Live"
-- Tunjukkan: layar Go Live dengan preview kamera aktif
-
-**1:30–1:50** — Isi judul siaran, tekan "Mulai Siaran"
-- Tunjukkan: siaran dimulai, preview kamera berjalan
-
-**1:50–2:05** — WAJIB: Tarik status bar ke bawah
-- Tunjukkan: ZOOM IN ke notifikasi "Siaran Sedang Berlangsung" / "Live Streaming Active"
-- Pastikan notifikasi terbaca jelas
-- Narasi: "Notifikasi ini menunjukkan layanan latar depan kamera dan mikrofon sedang aktif"
-
-**2:05–2:20** — Tekan HOME
-- Tunjukkan: layar home dengan notifikasi siaran masih ada di status bar
-- Tarik status bar untuk menampilkan notifikasi penuh
-- Narasi: "Siaran tetap aktif saat app diminimalkan. Kamera dan mikrofon terus terhubung melalui layanan latar depan."
-
-**2:20–2:30** — Kembali ke app, akhiri siaran
-- Tunjukkan: notifikasi hilang setelah siaran diakhiri
-- Narasi: "Layanan berhenti saat pengguna mengakhiri siaran"
-
-### Tips Teknis Rekaman
-
-- Gunakan Android screen recorder bawaan (swipe down → Screen Record)
-- Aktifkan "Show touches" di Developer Options agar tap terlihat
-- Gunakan perangkat fisik (bukan emulator) untuk audio yang jelas
-- Brightness maksimum agar notifikasi terbaca
-- Saat zoom in ke notifikasi: tahan 2-3 detik sebelum lanjut
-- Pastikan suara musik terdengar dalam audio rekaman layar
-
-### Upload Video ke YouTube
-
-1. Buka youtube.com → klik ikon + → Upload video
-2. Pilih file rekaman layar
-3. Judul: "SoundCave — Foreground Service Demo: Music Playback & Live Streaming"
-4. Visibility: UNLISTED (bukan Private, bukan Public)
-5. Klik Publish → Copy link
+Build version dinaikkan: 46 -> 47 (1.46 -> 1.47)
 
 ---
 
-## Part 3: Update Deskripsi Aplikasi di Play Store
+## Part 2: Script Video Baru (90 detik saja, lebih simple!)
 
-PENTING: Lakukan ini SEBELUM submit ulang pernyataan.
+### Script: Pemutaran Musik di Latar Belakang
 
-1. Buka Google Play Console → Pilih SoundCave
-2. Klik Store listing (Informasi toko)
-3. Scroll ke App description (Deskripsi aplikasi)
-4. Ganti dengan deskripsi dari file GOOGLE_PLAY_DESCRIPTION_INDONESIAN.md
-5. Klik Save
+**0:00-0:20** — Buka aplikasi, navigasi ke daftar lagu
+- Tunjukkan: layar home dengan daftar lagu / playlist
 
-Deskripsi baru mengintegrasikan penjelasan foreground service langsung ke dalam deskripsi fitur (bukan hanya di bagian izin terpisah).
+**0:20-0:40** — Pilih dan putar satu lagu
+- Tunjukkan: musik mulai diputar, PlayerBar muncul
+- Tarik status bar ke bawah — ZOOM IN ke notifikasi
+- Tunjukkan: nama lagu, artis, tombol play/pause/skip di notifikasi
+- Narasi (text overlay): "SoundCave menampilkan notifikasi persisten dengan kontrol media"
+
+**0:40-1:00** — Tekan tombol HOME (bukan Back)
+- Tunjukkan: layar home Android, notifikasi masih terlihat di status bar
+- Tarik status bar ke bawah — notifikasi terlihat penuh
+- Musik harus masih terdengar dalam rekaman (pastikan audio unmuted)
+- Narasi: "Musik tetap berjalan saat app di latar belakang via foreground service mediaPlayback"
+
+**1:00-1:20** — Tap Pause di NOTIFIKASI
+- Tunjukkan: tap tombol Pause di notifikasi
+- Musik berhenti
+- Narasi: "Pengguna bisa pause langsung dari notifikasi"
+
+**1:20-1:30** — Kembali ke app, tutup player -> notifikasi hilang
+- Narasi: "Service berhenti saat user menutup pemutar"
+
+### Tips Rekaman
+
+- Gunakan screen recorder bawaan Android
+- Aktifkan "Show touches" di Developer Options
+- Perangkat fisik (bukan emulator)
+- Pastikan audio musik terdengar di hasil rekaman
+- Zoom 2-3 detik di notifikasi
+- Upload ke YouTube sebagai UNLISTED
+- Judul: "SoundCave — Foreground Service Demo: Media Playback"
 
 ---
 
-## Part 4: Teks Pernyataan untuk Play Console
+## Part 3: Update Deskripsi Play Store
 
-Buka Google Play Console → SoundCave → App content → Review questionnaire → Foreground services → EDIT
-
-Salin teks berikut PERSIS ke kotak pernyataan (ganti [YOUTUBE LINK] dan [KREDENSIAL]):
+Copy dari `GOOGLE_PLAY_DESCRIPTION_INDONESIAN.md` ke Play Console > Store Listing
 
 ---
 
-FOREGROUND SERVICE PERMISSION DECLARATION — SOUNDCAVE
+## Part 4: Teks Pernyataan untuk Play Console (BARU - hanya 1 service)
 
-SoundCave is a music streaming and live broadcasting application. It uses three foreground service types, each essential to a distinct core feature. All services are user-initiated, display a persistent notification, and stop when the user terminates the feature.
+Buka Play Console → SoundCave → Policy → App content → Foreground service → Manage/Edit
+
+```
+FOREGROUND SERVICE DECLARATION — SOUNDCAVE v1.47
+
+SoundCave is a music streaming platform whose core feature is continuous background music playback for personal and business use (cafes, restaurants, hotels).
+
+We declare 1 foreground service type:
 
 ================================================================
-1. FOREGROUND_SERVICE_MEDIA_PLAYBACK
-   Type: mediaPlayback
+FOREGROUND_SERVICE_MEDIA_PLAYBACK
+Type: mediaPlayback
 ================================================================
 
-Core Feature: Continuous music and podcast streaming
+Core Feature: Continuous music and podcast streaming while app is in background or screen is locked. This is the PRIMARY function of the app.
 
 Why foreground service is required:
-SoundCave's primary function is music streaming. Users start a song, then continue other activities (messaging, browsing, reading) while music plays. Without a mediaPlayback foreground service, Android's process management would terminate audio playback whenever the app is not in the foreground. This would make the music streaming feature completely non-functional — equivalent to removing the core feature of the app.
+SoundCave's primary function is music streaming. Users start a song, then continue other activities (messaging, browsing, locking screen) while music plays. Without a mediaPlayback foreground service, Android would terminate audio playback whenever the app is not in the foreground. This would make the core feature completely non-functional.
+
+This is standard behavior for ALL music apps (Spotify, YouTube Music, etc.) and is explicitly allowed under Google Play policy for mediaPlayback use case.
 
 How it works:
-- Service starts: User taps Play on any song or podcast
-- Persistent notification appears: Shows track title, artist name, and media controls (previous / play-pause / next)
-- Service runs: Audio continues playing while app is in background or screen is locked
-- Service stops: User taps Pause then closes the player, or kills the app
+- Service starts: User taps Play on any song/podcast
+- Persistent notification: Shows track title, artist, controls (prev/play-pause/next)
+- Service runs: Audio continues while app backgrounded / screen locked
+- Service stops: User taps Pause or closes player; notification disappears
+- User-initiated: Only starts when user taps Play
+- Controllable: User can pause/stop directly from notification
 
-Notification example: "[Song Title] • [Artist Name] [⏮] [⏸] [⏭]"
+Notification example: "[Song Title] • [Artist]  [⏮] [⏸] [⏭]"
 
-================================================================
-2. FOREGROUND_SERVICE_CAMERA
-   Type: camera
-================================================================
-
-Core Feature: Live video broadcasting ("Go Live")
-
-Why foreground service is required:
-SoundCave's "Go Live" feature lets users broadcast live video via RTMP to a streaming server. Without a camera foreground service, Android would revoke camera access when another app uses the camera or when system resources are under pressure. This would abruptly cut the live stream — breaking the broadcast for all viewers watching.
-
-How it works:
-- Service starts: User taps "Start Broadcast" in the Go Live screen
-- Persistent notification appears: Shows "Live Streaming Active" with an End Stream action
-- Service runs: Camera frames are continuously captured and sent to the RTMP streaming server
-- Service stops: User taps "End Stream" in app or in notification; camera is released
-
-Notification example: "SoundCave — Live Streaming Active [End Stream]"
+Implementation: Uses react-native-music-control library which creates a NotificationService with foregroundServiceType="mediaPlayback" (see library's AndroidManifest.xml).
 
 ================================================================
-3. FOREGROUND_SERVICE_MICROPHONE
-   Type: microphone
+WHAT WE REMOVED (to fix rejection)
 ================================================================
 
-Core Feature: Live audio capture during broadcasting
+Previous version declared FOREGROUND_SERVICE_CAMERA and FOREGROUND_SERVICE_MICROPHONE but did not actually implement foreground services for those types. The NodeMediaClient library only does camera preview/broadcast in foreground Activity, not via foreground service.
 
-Why foreground service is required:
-The microphone foreground service runs concurrently with the camera foreground service during live broadcasts. Without a microphone foreground service, the system may revoke microphone access mid-broadcast, resulting in silent or broken audio for all viewers.
+In v1.47 we REMOVED those two permissions. Now only mediaPlayback is declared, which matches actual implementation.
 
-How it works:
-- Service starts: Simultaneously with the camera foreground service, when user taps "Start Broadcast"
-- Persistent notification: Same "Live Streaming Active" notification as the camera service
-- Service runs: Microphone audio is captured continuously and mixed into the RTMP stream
-- Service stops: Simultaneously with the camera service when user ends the broadcast
+CAMERA and RECORD_AUDIO permissions are still used for Go Live feature (live streaming) but via runtime permission request in foreground Activity, NOT via foreground service types.
 
 ================================================================
 DEMONSTRATION VIDEO
@@ -173,39 +129,24 @@ DEMONSTRATION VIDEO
 
 Video link: [PASTE YOUR YOUTUBE UNLISTED LINK HERE]
 
-The video demonstrates:
-0:00–1:10 — Music playback foreground service:
-  - User plays a song
-  - Persistent notification with track controls is shown (zoomed in, clearly readable)
-  - User presses HOME; app goes to background
-  - Music continues playing (audible in recording)
-  - Notification remains visible in status bar
-  - User taps Pause in notification — music stops
+Video demonstrates (90 seconds):
+0:00-0:40: User opens SoundCave, plays a song, notification appears with media controls (zoomed in, readable)
+0:40-1:00: User presses HOME, app goes to background, music continues (audible), notification remains
+1:00-1:20: User taps Pause in notification, music stops
+1:20-1:30: User returns to app, closes player, notification disappears
 
-1:10–2:30 — Camera & microphone foreground services:
-  - User opens Go Live feature
-  - User starts a live stream
-  - Persistent notification "Live Streaming Active" is shown (zoomed in, clearly readable)
-  - User presses HOME; stream continues (notification still visible)
-  - User returns to app, ends stream
-  - Notification disappears
+This proves:
+- Persistent notification is shown
+- Music continues when backgrounded (foreground service working)
+- User can control/stop from notification
+- Service is user-initiated and stoppable
 
 ================================================================
 TEST CREDENTIALS
 ================================================================
 
-Username: [MASUKKAN EMAIL AKUN TEST]
-Password: [MASUKKAN PASSWORD AKUN TEST]
-Notes: Account has full access to music library and Go Live feature. No payment required. To test music playback: tap any song on the Home screen. To test Go Live: tap the Go Live icon.
+Username: [YOUR TEST EMAIL]
+Password: [YOUR TEST PASSWORD]
+Notes: Login, then tap any song on Home to test playback foreground service.
 
----
-
-## Checklist Sebelum Submit
-
-- [ ] Video baru sudah direkam (notifikasi terlihat jelas dan terbaca saat di-zoom)
-- [ ] Video sudah diupload ke YouTube sebagai UNLISTED
-- [ ] YouTube link sudah disalin
-- [ ] Deskripsi Play Store sudah diperbarui (dari file GOOGLE_PLAY_DESCRIPTION_INDONESIAN.md)
-- [ ] Teks pernyataan di atas sudah diisi dengan link video dan disalin ke Play Console
-- [ ] Kredensial pengujian (email + password) sudah diisi di Play Console
-- [ ] Klik Save lalu Submit
+================================================================
