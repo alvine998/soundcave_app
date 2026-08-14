@@ -76,3 +76,5 @@ yarn-error.log
 
 # deepwork session state
 .slim/deepwork/
+
+android/app/google-services.json

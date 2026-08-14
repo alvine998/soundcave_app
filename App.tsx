@@ -241,17 +241,17 @@ function App() {
                       {...props}
                       onBack={() => props.navigation.goBack()}
                       onRegister={() => props.navigation.navigate('Register')}
-                      onSuccess={userProfile => {
+                      onSuccess={(userProfile, preferredRoute) => {
                         setProfile(userProfile);
                         props.navigation.reset({
                           index: 0,
                           routes: [
                             {
-                              name:
-                                userProfile.selectedGenres &&
-                                  userProfile.selectedGenres.length
+                              name: preferredRoute ||
+                                (userProfile.selectedGenres &&
+                                userProfile.selectedGenres.length
                                   ? 'Home'
-                                  : 'Genres',
+                                  : 'Genres'),
                             },
                           ],
                         });

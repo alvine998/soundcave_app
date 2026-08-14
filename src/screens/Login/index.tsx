@@ -20,7 +20,7 @@ import { signInWithGoogle, handleGoogleAuth } from '../../utils/googleAuth';
 type LoginScreenProps = {
   onBack: () => void;
   onRegister: () => void;
-  onSuccess: (profile: UserProfile) => void;
+  onSuccess: (profile: UserProfile, route?: 'Home' | 'Genres') => void;
 };
 
 const LoginScreen: React.FC<LoginScreenProps> = ({
@@ -48,7 +48,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           message: result.message,
           type: 'success',
         });
-        onSuccess(result.userProfile);
+        onSuccess(result.userProfile, 'Genres');
       } else {
         showToast({
           message: result.message,
