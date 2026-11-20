@@ -26,10 +26,7 @@ type NormalizedGoogleInfo = {
 
 // ponytail: ceiling = manual Web Client ID entry. Upgrade: env/remote-config if multi-flavor needed
 export const configureGoogleSignIn = () => {
-  if (
-    !CONFIG.GOOGLE_WEB_CLIENT_ID ||
-    CONFIG.GOOGLE_WEB_CLIENT_ID.includes('YOUR_WEB_CLIENT_ID')
-  ) {
+  if (!CONFIG.GOOGLE_WEB_CLIENT_ID || CONFIG.GOOGLE_WEB_CLIENT_ID.includes('YOUR_')) {
     console.warn(
       '[googleAuth] GOOGLE_WEB_CLIENT_ID not set in src/config/index.ts — Google login will fail. ' +
         'Create Web OAuth client in Google Cloud Console.'
@@ -43,9 +40,33 @@ export const configureGoogleSignIn = () => {
   });
 };
 
+const checkNetworkConnectivity = async (): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    // HEAD request to Google's auth endpoint; any response (even 4xx/405) means we're online.
+    const res = await fetch('https://accounts.google.com/', {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    return res.type === 'basic' || res.status > 0;
+  } catch {
+    return false;
+  }
+};
+
 export const signInWithGoogle = async (): Promise<NormalizedGoogleInfo | null> => {
   try {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+    const online = await checkNetworkConnectivity();
+    if (!online) {
+      throw new Error(
+        'No internet connection. Google sign-in needs network access — connect to Wi-Fi/cellular and retry.'
+      );
+    }
+
     const response = await GoogleSignin.signIn();
 
     if (isCancelledResponse(response)) {
@@ -55,7 +76,7 @@ export const signInWithGoogle = async (): Promise<NormalizedGoogleInfo | null> =
 
     if (!isSuccessResponse(response)) {
       // noSavedCredentialFound or other non-success (shouldn't happen for signIn, but guard)
-      console.log('Google sign-in no saved credential / not success:', response.type);
+      console.log('Google sign-in no saved credential / not success:', (response as any).type);
       return null;
     }
 
@@ -84,15 +105,30 @@ export const signInWithGoogle = async (): Promise<NormalizedGoogleInfo | null> =
           console.log('Signin in progress');
           return null;
         case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-          console.log('Play services not available or outdated');
-          return null;
+          throw new Error(
+            'Google Play Services is not available or outdated. Update it via the Play Store and retry.'
+          );
+        case '7': // GoogleSignInStatusCodes.NETWORK_ERROR
+          throw new Error(
+            'Network error reaching Google. Check the device/emulator connection, date & time settings, and that no firewall/proxy is blocking accounts.google.com, then retry.'
+          );
+        case '10': // GoogleSignInStatusCodes.DEVELOPER_ERROR
+          throw new Error(
+            'Google sign-in DEVELOPER_ERROR: the app signing SHA-1 in Google Cloud Console does not match this build. Verify the Android OAuth client fingerprint.'
+          );
+        case '12500': // GoogleSignInStatusCodes.SIGN_IN_FAILED
+          throw new Error(
+            'Google sign-in failed (12500): the installed app’s signing SHA-1 has no matching Android OAuth client in Google Cloud Console, ' +
+              'or the OAuth consent screen is in Testing mode and this account isn’t a test user. ' +
+              'Add the Play Store app-signing SHA-1 as an Android OAuth client and publish/whitelist the consent screen.'
+          );
         default:
           console.log('Google sign-in error', error.code, error);
-          return null;
+          throw new Error(`Google sign-in failed (code ${error.code}). Please retry.`);
       }
     } else {
       console.error('Unexpected Google sign-in error:', error);
-      return null;
+      throw new Error('Google sign-in failed. Please check your connection and retry.');
     }
   }
 };
