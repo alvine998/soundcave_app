@@ -1,5 +1,5 @@
 export const CONFIG = {
-  BASE_URL: 'https://api.rezim.site',
+  BASE_URL: 'https://api.soundcave.pro',
   // Replace with your Web OAuth Client ID from Google Cloud Console
   // Create it under: APIs & Services > Credentials > OAuth 2.0 Client IDs > Web application
   // Android OAuth client must be created with:
@@ -10,6 +10,6 @@ export const CONFIG = {
     // Web (client_type 3) OAuth client for com.soundcave_app — used as webClientId so the
     // returned idToken has the correct audience for backend verification. Do NOT use an
     // Android (client_type 1) client ID here, or sign-in will fail.
-    '309321457545-g3raqitaq9jkee577s1kt0ld2oj5rsbl.apps.googleusercontent.com',
+    '127371426849-bcutucb249p31oa0jfo35fku9nla9t9e.apps.googleusercontent.com',
   GOOGLE_IOS_CLIENT_ID: undefined as string | undefined,
 };
