@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "127371426849",
+    "project_id": "soundcave-app",
+    "storage_bucket": "soundcave-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:127371426849:android:d32ba8a22fbf7917cbb760",
+        "android_client_info": {
+          "package_name": "com.soundcave_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "127371426849-8faugkp1ki87pkvkrnca02rrcji5giuf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.soundcave_app",
+            "certificate_hash": "d71e36b041ac715569ba653022e05eb08bfa3825"
+          }
+        },
+        {
+          "client_id": "127371426849-bcutucb249p31oa0jfo35fku9nla9t9e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkI1kpE-CZTQF5RLRxuDCpv8uSmGdGV4A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "127371426849-bcutucb249p31oa0jfo35fku9nla9t9e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
